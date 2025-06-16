@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::process::{Command, Stdio};
 
 fn main() {
     loop {
@@ -24,8 +25,30 @@ fn main() {
                     break;
                 }
 
-                // TODO: Temporary Implementation
-                println!("Entered: '{}'", line);
+				let mut parts = line.split_whitespace();
+				let cmd = match parts.next() {
+					Some(c) => c,
+					None => continue,
+				};
+				let args: Vec<&str> = parts.collect();
+
+				let status = Command::new(cmd)
+					.args(&args)
+					.stdin(Stdio::inherit())
+					.stdout(Stdio::inherit())
+					.stderr(Stdio::inherit())
+					.status();
+
+				match status {
+					Ok(status) => {
+						if !status.success() {
+							eprintln!("Command '{}' exited with status: {}", cmd, status);
+						}
+					}
+					Err(err) => {
+						eprintln!("Failed to execute command '{}': {}", cmd, err);
+					}
+				}
             }
             Err(err) => {
                 eprintln!("Error reading input: {}", err);

@@ -4,6 +4,8 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};
+
 pub fn start() {
     loop {
         // Display prompt
@@ -32,25 +34,15 @@ pub fn start() {
 				let args: Vec<&str> = parts.collect();
 
 				// Built-in command handling
-				match cmd {
-					"cd" => {
-						let target = args.get(0)
-							.map(|s| s.to_string())
-							.unwrap_or_else(|| env::var("HOME").unwrap_or_else(|_| "/".to_string()));
-						if let Err(err) = env::set_current_dir(&target) {
-							eprintln!("cd: {}: {}", target, err);
+				if is_builtin_command(cmd) {
+					match run_builtin_command(cmd, &args) {
+						Ok(BuiltinStatus::Continue) => continue,
+						Ok(BuiltinStatus::Exit) => break,
+						Err(err) => {
+							eprintln!("Error executing built-in command '{}': {}", cmd, err);
+							continue;
 						}
-						continue;
 					}
-					"help" => {
-						println!("tinysh built-in commands:");
-						println!("  cd [DIR]   : Change directory");
-						println!("  exit       : Exit shell");
-						println!("  help       : Show this help");
-						continue;
-					}
-					"exit" => break,
-					_ => {}
 				}
 
 				let cmd_path = resolve_command_path(cmd);

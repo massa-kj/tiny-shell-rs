@@ -1,4 +1,7 @@
+use std::env;
+use std::fs;
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 fn main() {
@@ -32,21 +35,28 @@ fn main() {
 				};
 				let args: Vec<&str> = parts.collect();
 
-				let status = Command::new(cmd)
-					.args(&args)
-					.stdin(Stdio::inherit())
-					.stdout(Stdio::inherit())
-					.stderr(Stdio::inherit())
-					.status();
+				let cmd_path = resolve_command_path(cmd);
+				match cmd_path {
+					Some(_path) => {
+						let status = Command::new(cmd)
+							.args(&args)
+							.stdin(Stdio::inherit())
+							.stdout(Stdio::inherit())
+							.stderr(Stdio::inherit())
+							.status();
 
-				match status {
-					Ok(status) => {
-						if !status.success() {
-							eprintln!("Command '{}' exited with status: {}", cmd, status);
+						match status {
+							Ok(status) if !status.success() => {
+								eprintln!("Command '{}' exited with status: {}", cmd, status);
+							}
+							Err(err) => {
+								eprintln!("Failed to execute command '{}': {}", cmd, err);
+							}
+							_ => {}
 						}
 					}
-					Err(err) => {
-						eprintln!("Failed to execute command '{}': {}", cmd, err);
+					None => {
+						eprintln!("Command '{}' not found", cmd);
 					}
 				}
             }
@@ -55,5 +65,28 @@ fn main() {
             }
         }
     }
+}
+
+fn resolve_command_path(cmd: &str) -> Option<String> {
+	if cmd.contains('/') {
+		let path = Path::new(cmd);
+		if path.exists() && path.is_file() {
+			return Some(cmd.to_string());
+		} else {
+			return None;
+		}
+	}
+
+	// Otherwise, search in PATH
+	if let Ok(paths) = env::var("PATH") {
+		for dir in env::split_paths(&paths) {
+			let full_path = dir.join(cmd);
+			if full_path.exists() && fs::metadata(&full_path).map(|m| m.is_file()).unwrap_or(false) {
+				return Some(full_path.to_string_lossy().to_string());
+			}
+		}
+	}
+
+	None
 }
 

@@ -21,8 +21,12 @@ pub fn start() {
                     continue;
                 }
 
-                let parsed = parser::parse_line(line);
-                if let Err(e) = crate::executor::execute_parsed(parsed) {
+                let pipeline = parser::split_pipeline(line);
+                if pipeline.is_empty() {
+                    continue;
+                }
+
+                if let Err(e) = crate::executor::execute_pipeline(pipeline) {
                     eprintln!("Error: {}", e);
                 }
             }

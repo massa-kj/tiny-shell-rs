@@ -4,7 +4,63 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::parser::ParsedCommand;
+use crate::parser::{parse_line, ParsedCommand};
+
+pub fn execute_pipeline(pipeline: Vec<&str>) -> Result<(), io::Error> {
+    let mut children = Vec::new();
+    let mut prev_stdout: Option<Stdio> = None;
+
+    for (i, cmdline) in pipeline.iter().enumerate() {
+        let cmd = parse_line(cmdline);
+
+        use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};
+
+        // Built-in command handling
+        if is_builtin_command(cmd.command) {
+            match run_builtin_command(cmd.command, &cmd.args) {
+                Ok(BuiltinStatus::Continue) => return Ok(()),
+                Ok(BuiltinStatus::Exit) => std::process::exit(0),
+                Err(err) => {
+                    eprintln!("{}", err);
+                    return Ok(());
+                }
+            }
+        }
+
+        let path = super::executor::resolve_command_path(cmd.command).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, format!("Command not found: {}", cmd.command))
+        })?;
+
+        let mut command = Command::new(path);
+        command.args(cmd.args);
+
+        if let Some(stdin) = prev_stdout.take() {
+            command.stdin(stdin);
+        }
+
+        if i < pipeline.len() - 1 {
+            command.stdout(Stdio::piped());
+        }
+
+        let mut child = command.spawn()?;
+
+        if i < pipeline.len() - 1 {
+            let out = child.stdout.take().expect("Failed to take stdout");
+            prev_stdout = Some(Stdio::from(out));
+        }
+
+        children.push(child);
+    }
+
+    for mut child in children {
+        let status = child.wait()?;
+        if !status.success() {
+            eprintln!("Command exited with status: {:?}", status.code());
+        }
+    }
+
+    Ok(())
+}
 
 pub fn execute_parsed(cmd: ParsedCommand) -> Result<(), io::Error> {
     use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};

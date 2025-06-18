@@ -51,3 +51,10 @@ pub fn parse_line(line: &str) -> ParsedCommand {
     }
 }
 
+pub fn split_pipeline(line: &str) -> Vec<&str> {
+    line.split('|')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+

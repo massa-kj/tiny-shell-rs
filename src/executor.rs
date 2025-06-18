@@ -4,7 +4,7 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::parser::{parse_line, ParsedCommand};
+use crate::parser::{parse_line};
 
 pub fn execute_pipeline(pipeline: Vec<&str>) -> Result<(), io::Error> {
     let mut children = Vec::new();
@@ -34,6 +34,22 @@ pub fn execute_pipeline(pipeline: Vec<&str>) -> Result<(), io::Error> {
         let mut command = Command::new(path);
         command.args(cmd.args);
 
+        // stdin
+        if let Some(input_file) = cmd.stdin {
+            let f = File::open(input_file)?;
+            command.stdin(Stdio::from(f));
+        }
+
+        // stdout
+        if let Some((output_file, append)) = cmd.stdout {
+            let f = if append {
+                OpenOptions::new().create(true).append(true).open(output_file)?
+            } else {
+                OpenOptions::new().create(true).truncate(true).write(true).open(output_file)?
+            };
+            command.stdout(Stdio::from(f));
+        }
+
         if let Some(stdin) = prev_stdout.take() {
             command.stdin(stdin);
         }
@@ -57,53 +73,6 @@ pub fn execute_pipeline(pipeline: Vec<&str>) -> Result<(), io::Error> {
         if !status.success() {
             eprintln!("Command exited with status: {:?}", status.code());
         }
-    }
-
-    Ok(())
-}
-
-pub fn execute_parsed(cmd: ParsedCommand) -> Result<(), io::Error> {
-    use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};
-
-    // Built-in command handling
-    if is_builtin_command(cmd.command) {
-        match run_builtin_command(cmd.command, &cmd.args) {
-            Ok(BuiltinStatus::Continue) => return Ok(()),
-            Ok(BuiltinStatus::Exit) => std::process::exit(0),
-            Err(err) => {
-                eprintln!("{}", err);
-                return Ok(());
-            }
-        }
-    }
-
-    let path = super::executor::resolve_command_path(cmd.command).ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, format!("Command not found: {}", cmd.command))
-    })?;
-
-    let mut command = Command::new(path);
-    command.args(cmd.args);
-
-    // stdin
-    if let Some(input_file) = cmd.stdin {
-        let f = File::open(input_file)?;
-        command.stdin(Stdio::from(f));
-    }
-
-    // stdout
-    if let Some((output_file, append)) = cmd.stdout {
-        let f = if append {
-            OpenOptions::new().create(true).append(true).open(output_file)?
-        } else {
-            OpenOptions::new().create(true).truncate(true).write(true).open(output_file)?
-        };
-        command.stdout(Stdio::from(f));
-    }
-
-    let status = command.spawn()?.wait()?;
-
-    if !status.success() {
-        eprintln!("Command exited with status: {:?}", status.code());
     }
 
     Ok(())

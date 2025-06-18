@@ -1,43 +1,56 @@
 use std::env;
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::io;
 use std::path::Path;
-use std::process::{Command, ExitStatus};
-use std::os::unix::process::ExitStatusExt;
-use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};
+use std::process::{Command, Stdio};
 
-pub fn execute(line: &str) -> Result<ExitStatus, std::io::Error> {
-	let mut parts = line.split_whitespace();
-	let cmd = match parts.next() {
-		Some(c) => c,
-		None => return Ok(ExitStatusExt::from_raw(0)),
-	};
-	let args: Vec<&str> = parts.collect();
+use crate::parser::ParsedCommand;
+
+pub fn execute_parsed(cmd: ParsedCommand) -> Result<(), io::Error> {
+	use crate::builtins::{is_builtin_command, run_builtin_command, BuiltinStatus};
 
 	// Built-in command handling
-	if is_builtin_command(cmd) {
-		match run_builtin_command(cmd, &args) {
-			Ok(BuiltinStatus::Continue) => return Ok(ExitStatusExt::from_raw(0)),
+	if is_builtin_command(cmd.command) {
+		match run_builtin_command(cmd.command, &cmd.args) {
+			Ok(BuiltinStatus::Continue) => return Ok(()),
 			Ok(BuiltinStatus::Exit) => std::process::exit(0),
 			Err(err) => {
-				eprintln!("Error executing built-in command '{}': {}", cmd, err);
-				return Ok(ExitStatusExt::from_raw(1));
+				eprintln!("{}", err);
+				return Ok(());
 			}
 		}
 	}
 
-	let cmd_path = resolve_command_path(cmd);
-	match cmd_path {
-		Some(_path) => {
-			Command::new(cmd)
-				.args(&args)
-				.spawn()?
-				.wait()
-		}
-		None => {
-			eprintln!("Command '{}' not found", cmd);
-			Ok(ExitStatusExt::from_raw(127)) // Command not found
-		}
+	let path = super::executor::resolve_command_path(cmd.command).ok_or_else(|| {
+		io::Error::new(io::ErrorKind::NotFound, format!("Command not found: {}", cmd.command))
+	})?;
+
+	let mut command = Command::new(path);
+	command.args(cmd.args);
+
+	// stdin
+	if let Some(input_file) = cmd.stdin {
+		let f = File::open(input_file)?;
+		command.stdin(Stdio::from(f));
 	}
+
+	// stdout
+	if let Some((output_file, append)) = cmd.stdout {
+		let f = if append {
+			OpenOptions::new().create(true).append(true).open(output_file)?
+		} else {
+			OpenOptions::new().create(true).truncate(true).write(true).open(output_file)?
+		};
+		command.stdout(Stdio::from(f));
+	}
+
+	let status = command.spawn()?.wait()?;
+
+	if !status.success() {
+		eprintln!("Command exited with status: {:?}", status.code());
+	}
+
+	Ok(())
 }
 
 fn resolve_command_path(cmd: &str) -> Option<String> {

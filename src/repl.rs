@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use crate::parser;
 
 pub fn start() {
     loop {
@@ -20,15 +21,9 @@ pub fn start() {
                     continue;
                 }
 
-				match crate::executor::execute(line) {
-					Ok(status) => {
-						if !status.success() {
-							eprintln!("Command exited with status: {:?}", status.code());
-						}
-					}
-					Err(e) => {
-						eprintln!("Error: {}", e);
-					}
+				let parsed = parser::parse_line(line);
+				if let Err(e) = crate::executor::execute_parsed(parsed) {
+					eprintln!("Error: {}", e);
 				}
             }
             Err(err) => {

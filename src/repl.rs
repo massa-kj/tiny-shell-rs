@@ -12,7 +12,7 @@ pub fn start() {
         match io::stdin().read_line(&mut input) {
             Ok(0) => {
                 // End with EOF (e.g. Ctrl+D)
-				println!();
+                println!();
                 break;
             }
             Ok(_) => {
@@ -21,10 +21,10 @@ pub fn start() {
                     continue;
                 }
 
-				let parsed = parser::parse_line(line);
-				if let Err(e) = crate::executor::execute_parsed(parsed) {
-					eprintln!("Error: {}", e);
-				}
+                let parsed = parser::parse_line(line);
+                if let Err(e) = crate::executor::execute_parsed(parsed) {
+                    eprintln!("Error: {}", e);
+                }
             }
             Err(err) => {
                 eprintln!("Error reading input: {}", err);

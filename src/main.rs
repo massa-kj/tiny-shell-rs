@@ -4,6 +4,6 @@ mod builtins;
 mod parser;
 
 fn main() {
-	repl::start();
+    repl::start();
 }
 

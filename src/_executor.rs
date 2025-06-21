@@ -4,8 +4,6 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::parser::{parse_line};
-
 use crate::ast::AstNode;
 use crate::env::Environment;
 

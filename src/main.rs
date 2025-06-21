@@ -9,7 +9,8 @@ mod builtins;
 
 use env::Environment;
 use prompt::ShellPrompt;
-use executor::execute;
+// use executor::execute;
+use parser::Parser;
 
 fn main() {
     let mut env = Environment::new();
@@ -29,10 +30,17 @@ fn main() {
                 break;
             }
         };
-        let ast = parser::parse(&tokens);
-        let expanded = expander::expand(&ast, &env);
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse();
+        let expanded = match ast {
+            Ok(ast) => expander::expand(&ast, &env),
+            Err(e) => {
+                eprintln!("Parse error: {}", e);
+                continue;
+            }
+        };
 
-        let status = execute(&expanded, &mut env);
+        let status = executor::execute(&expanded, &mut env);
         if status == 0 {
             // by exit status
         }

@@ -20,5 +20,6 @@ impl ShellPrompt {
         }
         Ok(Some(buf.trim_end().to_string()))
     }
+    // TODO: history, completion, etc.
 }
 

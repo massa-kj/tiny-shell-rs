@@ -1,20 +1,27 @@
-#[derive(Debug)]
+// #[derive(Debug)]
+// pub struct Token {
+//     pub kind: TokenKind,
+//     pub text: String,
+// }
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
-    Word,
-    // Operator, LParen, ...
+    Word(String),              // command or argument
+    Pipe,                      // |
+    RedirectIn,                // <
+    RedirectOut,               // > (file, append)
+    Semicolon,                 // ;
+    And,                       // &&
+    Or,                        // ||
+    LParen,                    // (
+    RParen,                    // )
 }
 
-#[derive(Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub text: String,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandKind {
     Simple,
-//     Builtin,
-//     External,
+    Builtin,
+    External,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,20 +31,23 @@ pub enum AstNode {
         args: Vec<String>,
         kind: CommandKind,
     },
-    Empty,
-    // Pipeline(Box<AstNode>, Box<AstNode>),
-    // Redirect {
-    //     node: Box<AstNode>,
-    //     kind: RedirectKind,
-    //     file: String,
-    // },
-    // Subshell,
+    // Empty,
+    Pipeline(Box<AstNode>, Box<AstNode>),
+    Redirect {
+        node: Box<AstNode>,
+        kind: RedirectKind,
+        file: String,
+    },
+    Sequence(Box<AstNode>, Box<AstNode>),
+    And(Box<AstNode>, Box<AstNode>),
+    Or(Box<AstNode>, Box<AstNode>),
+    Subshell(Box<AstNode>),
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum RedirectKind {
-//     In,
-//     Out,
-//     Append,
-// }
-//
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RedirectKind {
+    In,
+    Out,
+    Append,
+}
+

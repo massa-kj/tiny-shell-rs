@@ -1,3 +1,17 @@
+use crate::ast::{AstNode, Token};
+
+pub fn parse(tokens: &[Token]) -> AstNode {
+    if tokens.is_empty() {
+        AstNode::Empty
+    } else {
+        AstNode::Command {
+            name: tokens[0].text.clone(),
+            args: tokens[1..].iter().map(|t| t.text.clone()).collect(),
+            kind: crate::ast::CommandKind::Simple,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ParsedCommand<'a> {
     pub command: &'a str,

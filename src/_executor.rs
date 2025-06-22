@@ -7,20 +7,20 @@ use std::process::{Command, Stdio};
 use crate::ast::AstNode;
 use crate::env::Environment;
 
-pub fn execute(node: &AstNode, _env: &mut Environment) -> i32 {
-    match node {
-        AstNode::Command { name, args, .. } => {
-            let status = Command::new(name)
-            .args(args)
-            .status();
-            match status {
-                Ok(s) => s.code().unwrap_or(1),
-                Err(_) => 1,
-            }
-        }
-        AstNode::Empty => 0,
-    }
-}
+// pub fn execute(node: &AstNode, _env: &mut Environment) -> i32 {
+//     match node {
+//         AstNode::Command { name, args, .. } => {
+//             let status = Command::new(name)
+//             .args(args)
+//             .status();
+//             match status {
+//                 Ok(s) => s.code().unwrap_or(1),
+//                 Err(_) => 1,
+//             }
+//         }
+//         AstNode::Empty => 0,
+//     }
+// }
 
 pub fn execute_pipeline(pipeline: Vec<&str>) -> Result<(), io::Error> {
     let mut children = Vec::new();

@@ -20,6 +20,7 @@ The shell consists of several components that work together in a pipeline fashio
 ### Implemented
 
 - Simple execution of commands (e.g., `ls`, `echo`)
+- Built-in commands (e.g., `cd`, `exit`, `help`)
 
 ### Planned
 
@@ -27,7 +28,6 @@ The shell consists of several components that work together in a pipeline fashio
 - Pipe support (e.g., `ls | grep txt`)
 - Redirection support (e.g., `command > file`, `command < file`)
 - Background execution (e.g., `command &`)
-- Built-in commands (e.g., `cd`, `exit`, `help`)
 - Job control (e.g., `jobs`, `fg`, `bg`)
 - Environment variable expansion (e.g., `$HOME`, `${VAR}`)
 - Command substitution (e.g., `$(command)`)

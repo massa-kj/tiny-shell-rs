@@ -10,6 +10,7 @@ pub fn execute(node: &AstNode, env: &mut Environment) -> i32 {
         AstNode::Pipeline(lhs, rhs) => pipeline::execute_pipeline(lhs, rhs, env),
         // AstNode::Redirect { .. } => redirect::execute_redirect(node, env),
         // AstNode::Subshell(sub) => subshell::execute_subshell(sub, env),
+        // AstNode::Empty => 0,
         // ...etc
         _ => 0,
     }

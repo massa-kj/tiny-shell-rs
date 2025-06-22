@@ -1,5 +1,6 @@
 use crate::ast::AstNode;
 use crate::env::Environment;
+use crate::builtins::BuiltinManager;
 // use crate::executor::builtin;
 use std::process::Command;
 
@@ -10,16 +11,17 @@ pub fn execute_command(node: &AstNode, env: &mut Environment) -> i32 {
     };
 
     // Built-in command execution
-    // if builtin::is_builtin(name) {
-    //     return builtin::execute_builtin(name, args, env);
-    // }
+    let builtin_manager = BuiltinManager::new();
+    if builtin_manager.is_builtin(name) {
+        return builtin_manager.execute(name, args, env);
+    }
 
     // External command execution
     let mut cmd = Command::new(name);
     cmd.args(args);
 
     // Pass shell environment variables to external commands (empty for now, will be expanded from env.vars/env.envs etc.)
-    // 例: for (k, v) in &env.envs { cmd.env(k, v); }
+    // e.g. for (k, v) in &env.envs { cmd.env(k, v); }
 
     // execution & wait
     match cmd.status() {

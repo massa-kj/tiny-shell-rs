@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
     fn parse_command(&mut self) -> Result<AstNode, String> {
         // 1. subshell
         if self.consume(&TokenKind::LParen) {
-            let node = self.parse_sequence()?; // ( ... ) 内は自由
+            let node = self.parse_sequence()?;
             if !self.consume(&TokenKind::RParen) {
                 return Err("missing ')'".into());
             }

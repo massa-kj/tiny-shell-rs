@@ -10,7 +10,7 @@ mod builtins;
 use env::Environment;
 use prompt::ShellPrompt;
 // use executor::execute;
-use parser::Parser;
+use crate::parser::{Parser, default::DefaultParser};
 
 fn main() {
     let mut env = Environment::new();
@@ -30,7 +30,7 @@ fn main() {
                 break;
             }
         };
-        let mut parser = Parser::new(&tokens);
+        let mut parser = DefaultParser::new(&tokens);
         let ast = parser.parse();
         let expanded = match ast {
             Ok(ast) => expander::expand(&ast, &env),

@@ -1,0 +1,251 @@
+pub mod default;
+use crate::ast::{AstNode};
+
+pub trait Parser {
+    fn parse(&mut self) -> Result<AstNode, String>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::{AstNode, RedirectKind, CommandKind, TokenKind};
+    use crate::parser::default::DefaultParser;
+
+    fn lex_and_parse(src: &str) -> AstNode {
+        let tokens = crate::lexer::tokenize(src);
+        let mut parser = DefaultParser::new(&tokens);
+        parser.parse().unwrap()
+    }
+
+    #[test]
+    fn test_simple_command() {
+        let ast = lex_and_parse("echo hello");
+        assert_eq!(
+            ast,
+            AstNode::Command {
+                name: "echo".to_string(),
+                args: vec!["hello".to_string()],
+                kind: CommandKind::Simple,
+            }
+        );
+    }
+
+    #[test]
+    fn test_command_with_args() {
+        let ast = lex_and_parse("grep foo bar");
+        assert_eq!(
+            ast,
+            AstNode::Command {
+                name: "grep".to_string(),
+                args: vec!["foo".to_string(), "bar".to_string()],
+                kind: CommandKind::Simple,
+            }
+        );
+    }
+
+    #[test]
+    fn test_pipeline() {
+        let ast = lex_and_parse("ls | wc");
+        assert_eq!(
+            ast,
+            AstNode::Pipeline(
+                Box::new(AstNode::Command {
+                    name: "ls".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                }),
+                Box::new(AstNode::Command {
+                    name: "wc".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn test_multistage_pipeline() {
+        let ast = lex_and_parse("ls | grep foo | wc");
+        assert_eq!(
+            ast,
+            AstNode::Pipeline(
+                Box::new(AstNode::Pipeline(
+                    Box::new(AstNode::Command {
+                        name: "ls".to_string(),
+                        args: vec![],
+                        kind: CommandKind::Simple,
+                    }),
+                    Box::new(AstNode::Command {
+                        name: "grep".to_string(),
+                        args: vec!["foo".to_string()],
+                        kind: CommandKind::Simple,
+                    }),
+                )),
+                Box::new(AstNode::Command {
+                    name: "wc".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn test_redirect_out() {
+        let ast = lex_and_parse("ls > out.txt");
+        assert_eq!(
+            ast,
+            AstNode::Redirect {
+                node: Box::new(AstNode::Command {
+                    name: "ls".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                }),
+                kind: RedirectKind::Out,
+                file: "out.txt".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_pipeline_with_redirect() {
+        let ast = lex_and_parse("ls | wc > out.txt");
+        assert_eq!(
+            ast,
+            AstNode::Redirect {
+                node: Box::new(AstNode::Pipeline(
+                    Box::new(AstNode::Command {
+                        name: "ls".to_string(),
+                        args: vec![],
+                        kind: CommandKind::Simple,
+                    }),
+                    Box::new(AstNode::Command {
+                        name: "wc".to_string(),
+                        args: vec![],
+                        kind: CommandKind::Simple,
+                    })
+                )),
+                kind: RedirectKind::Out,
+                file: "out.txt".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_and_or_sequence() {
+        let ast = lex_and_parse("echo ok && ls || echo err; echo end");
+        assert_eq!(
+            ast,
+            AstNode::Sequence(
+                Box::new(AstNode::Or(
+                    Box::new(AstNode::And(
+                        Box::new(AstNode::Command {
+                            name: "echo".to_string(),
+                            args: vec!["ok".to_string()],
+                            kind: CommandKind::Simple,
+                        }),
+                        Box::new(AstNode::Command {
+                            name: "ls".to_string(),
+                            args: vec![],
+                            kind: CommandKind::Simple,
+                        }),
+                    )),
+                    Box::new(AstNode::Command {
+                        name: "echo".to_string(),
+                        args: vec!["err".to_string()],
+                        kind: CommandKind::Simple,
+                    }),
+                )),
+                Box::new(AstNode::Command {
+                    name: "echo".to_string(),
+                    args: vec!["end".to_string()],
+                    kind: CommandKind::Simple,
+                }),
+            )
+        );
+    }
+
+    #[test]
+    fn test_subshell() {
+        let ast = lex_and_parse("(ls | wc)");
+        assert_eq!(
+            ast,
+            AstNode::Subshell(Box::new(AstNode::Pipeline(
+                Box::new(AstNode::Command {
+                    name: "ls".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                }),
+                Box::new(AstNode::Command {
+                    name: "wc".to_string(),
+                    args: vec![],
+                    kind: CommandKind::Simple,
+                }),
+            )))
+        );
+    }
+
+    #[test]
+    fn test_command_with_multiple_redirects() {
+        let ast = lex_and_parse("cat < in.txt > out.txt");
+        assert_eq!(
+            ast,
+            AstNode::Redirect {
+                node: Box::new(AstNode::Redirect {
+                    node: Box::new(AstNode::Command {
+                        name: "cat".to_string(),
+                        args: vec![],
+                        kind: CommandKind::Simple,
+                    }),
+                    kind: RedirectKind::In,
+                    file: "in.txt".to_string(),
+                }),
+                kind: RedirectKind::Out,
+                file: "out.txt".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_complex_oneliner() {
+        let ast = lex_and_parse("cat | grep -q foo | wc < in.txt > out.txt");
+        assert_eq!(
+            ast,
+            AstNode::Redirect {
+                node: Box::new(AstNode::Redirect {
+                    node: Box::new(AstNode::Pipeline(
+                        Box::new(AstNode::Pipeline(
+                            Box::new(AstNode::Command {
+                                name: "cat".to_string(),
+                                args: vec![],
+                                kind: CommandKind::Simple,
+                            }),
+                            Box::new(AstNode::Command {
+                                name: "grep".to_string(),
+                                args: vec!["-q".to_string(), "foo".to_string()],
+                                kind: CommandKind::Simple,
+                            }),
+                        )),
+                        Box::new(AstNode::Command {
+                            name: "wc".to_string(),
+                            args: vec![],
+                            kind: CommandKind::Simple,
+                        })
+                    )),
+                    kind: RedirectKind::In,
+                    file: "in.txt".to_string(),
+                }),
+                kind: RedirectKind::Out,
+                file: "out.txt".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_error() {
+        let tokens = crate::lexer::tokenize("&& ls");
+        let mut parser = DefaultParser::new(&tokens);
+        assert!(parser.parse().is_err());
+    }
+}
+

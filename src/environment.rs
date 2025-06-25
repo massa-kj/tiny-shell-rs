@@ -1,5 +1,6 @@
 // use std::collections::HashMap;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     // pub vars: HashMap<String, String>,
     // pub envs: HashMap<String, String>,

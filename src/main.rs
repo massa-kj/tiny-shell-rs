@@ -6,6 +6,7 @@ mod executor;
 mod environment;
 mod prompt;
 mod builtins;
+mod error;
 
 use environment::Environment;
 use prompt::ShellPrompt;

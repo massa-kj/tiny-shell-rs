@@ -1,5 +1,5 @@
 use crate::parser::Parser;
-use crate::ast::{AstNode, TokenKind};
+use crate::ast::{AstNode, CommandNode, TokenKind};
 
 pub struct DefaultParser<'a> {
     tokens: &'a [TokenKind],
@@ -101,11 +101,11 @@ impl<'a> DefaultParser<'a> {
             if args.is_empty() {
                 return Err("expected command".to_string());
             }
-            Ok(AstNode::Command {
+            Ok(AstNode::Command(CommandNode {
                 name: args[0].clone(),
                 args: args[1..].to_vec(),
                 kind: crate::ast::CommandKind::Simple,
-            })
+            }))
         }
     }
 

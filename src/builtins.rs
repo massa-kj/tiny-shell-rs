@@ -1,11 +1,11 @@
-use crate::env::Environment;
+use std::collections::HashMap;
+
+use crate::environment::Environment;
 
 pub trait BuiltinCommand {
     fn name(&self) -> &'static str;
     fn run(&self, args: &[String], env: &mut Environment) -> i32;
 }
-
-use std::collections::HashMap;
 
 pub struct BuiltinManager {
     commands: HashMap<String, Box<dyn BuiltinCommand>>,

@@ -3,11 +3,11 @@ mod parser;
 mod ast;
 mod expander;
 mod executor;
-mod env;
+mod environment;
 mod prompt;
 mod builtins;
 
-use env::Environment;
+use environment::Environment;
 use prompt::ShellPrompt;
 // use executor::execute;
 use crate::parser::{Parser, default::DefaultParser};

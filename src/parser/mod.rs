@@ -8,7 +8,7 @@ pub trait Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, RedirectKind, CommandKind, TokenKind};
+    use crate::ast::{AstNode, RedirectKind, CommandNode, CommandKind, TokenKind};
     use crate::parser::default::DefaultParser;
 
     fn lex_and_parse(src: &str) -> AstNode {
@@ -22,11 +22,11 @@ mod tests {
         let ast = lex_and_parse("echo hello");
         assert_eq!(
             ast,
-            AstNode::Command {
+            AstNode::Command(CommandNode {
                 name: "echo".to_string(),
                 args: vec!["hello".to_string()],
                 kind: CommandKind::Simple,
-            }
+            }),
         );
     }
 
@@ -35,11 +35,11 @@ mod tests {
         let ast = lex_and_parse("grep foo bar");
         assert_eq!(
             ast,
-            AstNode::Command {
+            AstNode::Command(CommandNode {
                 name: "grep".to_string(),
                 args: vec!["foo".to_string(), "bar".to_string()],
                 kind: CommandKind::Simple,
-            }
+            }),
         );
     }
 
@@ -49,16 +49,16 @@ mod tests {
         assert_eq!(
             ast,
             AstNode::Pipeline(
-                Box::new(AstNode::Command {
+                Box::new(AstNode::Command(CommandNode {
                     name: "ls".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                }),
-                Box::new(AstNode::Command {
+                })),
+                Box::new(AstNode::Command(CommandNode {
                     name: "wc".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                })
+                })),
             )
         );
     }
@@ -70,22 +70,22 @@ mod tests {
             ast,
             AstNode::Pipeline(
                 Box::new(AstNode::Pipeline(
-                    Box::new(AstNode::Command {
+                    Box::new(AstNode::Command(CommandNode {
                         name: "ls".to_string(),
                         args: vec![],
                         kind: CommandKind::Simple,
-                    }),
-                    Box::new(AstNode::Command {
+                    })),
+                    Box::new(AstNode::Command(CommandNode {
                         name: "grep".to_string(),
                         args: vec!["foo".to_string()],
                         kind: CommandKind::Simple,
-                    }),
+                    })),
                 )),
-                Box::new(AstNode::Command {
+                Box::new(AstNode::Command(CommandNode {
                     name: "wc".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                })
+                })),
             )
         );
     }
@@ -96,11 +96,11 @@ mod tests {
         assert_eq!(
             ast,
             AstNode::Redirect {
-                node: Box::new(AstNode::Command {
+                node: Box::new(AstNode::Command(CommandNode {
                     name: "ls".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                }),
+                })),
                 kind: RedirectKind::Out,
                 file: "out.txt".to_string(),
             }
@@ -114,16 +114,16 @@ mod tests {
             ast,
             AstNode::Redirect {
                 node: Box::new(AstNode::Pipeline(
-                    Box::new(AstNode::Command {
+                    Box::new(AstNode::Command(CommandNode {
                         name: "ls".to_string(),
                         args: vec![],
                         kind: CommandKind::Simple,
-                    }),
-                    Box::new(AstNode::Command {
+                    })),
+                    Box::new(AstNode::Command(CommandNode {
                         name: "wc".to_string(),
                         args: vec![],
                         kind: CommandKind::Simple,
-                    })
+                    })),
                 )),
                 kind: RedirectKind::Out,
                 file: "out.txt".to_string(),
@@ -139,28 +139,28 @@ mod tests {
             AstNode::Sequence(
                 Box::new(AstNode::Or(
                     Box::new(AstNode::And(
-                        Box::new(AstNode::Command {
+                        Box::new(AstNode::Command(CommandNode {
                             name: "echo".to_string(),
                             args: vec!["ok".to_string()],
                             kind: CommandKind::Simple,
-                        }),
-                        Box::new(AstNode::Command {
+                        })),
+                        Box::new(AstNode::Command(CommandNode {
                             name: "ls".to_string(),
                             args: vec![],
                             kind: CommandKind::Simple,
-                        }),
+                        })),
                     )),
-                    Box::new(AstNode::Command {
+                    Box::new(AstNode::Command(CommandNode {
                         name: "echo".to_string(),
                         args: vec!["err".to_string()],
                         kind: CommandKind::Simple,
-                    }),
+                    })),
                 )),
-                Box::new(AstNode::Command {
+                Box::new(AstNode::Command(CommandNode {
                     name: "echo".to_string(),
                     args: vec!["end".to_string()],
                     kind: CommandKind::Simple,
-                }),
+                })),
             )
         );
     }
@@ -171,16 +171,16 @@ mod tests {
         assert_eq!(
             ast,
             AstNode::Subshell(Box::new(AstNode::Pipeline(
-                Box::new(AstNode::Command {
+                Box::new(AstNode::Command(CommandNode {
                     name: "ls".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                }),
-                Box::new(AstNode::Command {
+                })),
+                Box::new(AstNode::Command(CommandNode {
                     name: "wc".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                }),
+                })),
             )))
         );
     }
@@ -192,11 +192,11 @@ mod tests {
             ast,
             AstNode::Redirect {
                 node: Box::new(AstNode::Redirect {
-                    node: Box::new(AstNode::Command {
+                    node: Box::new(AstNode::Command(CommandNode {
                         name: "cat".to_string(),
                         args: vec![],
                         kind: CommandKind::Simple,
-                    }),
+                    })),
                     kind: RedirectKind::In,
                     file: "in.txt".to_string(),
                 }),
@@ -215,22 +215,22 @@ mod tests {
                 node: Box::new(AstNode::Redirect {
                     node: Box::new(AstNode::Pipeline(
                         Box::new(AstNode::Pipeline(
-                            Box::new(AstNode::Command {
+                            Box::new(AstNode::Command(CommandNode {
                                 name: "cat".to_string(),
                                 args: vec![],
                                 kind: CommandKind::Simple,
-                            }),
-                            Box::new(AstNode::Command {
+                            })),
+                            Box::new(AstNode::Command(CommandNode {
                                 name: "grep".to_string(),
                                 args: vec!["-q".to_string(), "foo".to_string()],
                                 kind: CommandKind::Simple,
-                            }),
+                            })),
                         )),
-                        Box::new(AstNode::Command {
+                        Box::new(AstNode::Command(CommandNode {
                             name: "wc".to_string(),
                             args: vec![],
                             kind: CommandKind::Simple,
-                        })
+                        })),
                     )),
                     kind: RedirectKind::In,
                     file: "in.txt".to_string(),

@@ -95,6 +95,18 @@ mod tests {
         assert!(matches!(result, Ok(0)));
         assert_eq!(exec.log, vec!["command: echo [\"hello\"]"]);
     }
+
+    #[test]
+    fn test_pipeline() {
+        let ast = AstNode::Pipeline(
+            Box::new(dummy_cmd("ls", &[])),
+            Box::new(dummy_cmd("wc", &[])),
+        );
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(exec.log, vec!["pipeline", "command: ls []", "command: wc []"]);
     }
 }
 

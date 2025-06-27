@@ -46,3 +46,67 @@ impl Executor for DefaultExecutor {
     }
 }
 
+impl DefaultExecutor {
+    fn exec_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecResult {
+        // Built-in command execution
+        let builtin_manager = BuiltinManager::new();
+        if builtin_manager.is_builtin(&cmd.name) {
+            // return builtin_manager.execute(&cmd.name, &cmd.args, env);
+            return Ok(0)
+        }
+
+        let path = match resolve_command_path(&cmd.name) {
+            Some(p) => p,
+            None => {
+                eprintln!("tiny-shell: command not found or failed");
+                return Ok(127) // The shell's standard "command not found" exit code
+            }
+        };
+
+        // External command execution
+        let mut command = Command::new(path);
+        command.args(&cmd.args);
+
+        // 環境変数
+        // for (k, v) in &cmd.assignments {
+        //     command.env(k, v);
+        // }
+        // shell全体の環境変数
+        // for (k, v) in &env.vars {
+        //     command.env(k, v);
+        // }
+
+        // 標準入出力リダイレクト、背景プロセス等がある場合はここでStdio制御
+        // command.stdin(Stdio::inherit()).stdout(...) など
+
+        let status = command
+            .status()
+            .map_err(ExecError::Io)?;
+
+        Ok(status.code().unwrap_or(1))
+    }
+}
+
+fn resolve_command_path(cmd: &str) -> Option<String> {
+    if cmd.contains('/') {
+        let path = Path::new(cmd);
+        if path.exists() && path.is_file() {
+            return Some(cmd.to_string());
+        } else {
+            return None;
+        }
+    }
+
+    // Otherwise, search in PATH
+    if let Ok(paths) = env::var("PATH") {
+        for dir in env::split_paths(&paths) {
+            let full_path = dir.join(cmd);
+            if full_path.exists() && fs::metadata(&full_path).map(|m| m.is_file()).unwrap_or(false) {
+                return Some(full_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+

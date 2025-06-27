@@ -86,6 +86,15 @@ mod tests {
         })
     }
 
+    #[test]
+    fn test_simple_command() {
+        let ast = dummy_cmd("echo", &["hello"]);
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(exec.log, vec!["command: echo [\"hello\"]"]);
+    }
     }
 }
 

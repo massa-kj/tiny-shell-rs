@@ -10,8 +10,8 @@ mod error;
 
 use environment::Environment;
 use prompt::ShellPrompt;
-// use executor::execute;
 use crate::parser::{Parser, default::DefaultParser};
+use crate::executor::{Executor, default::DefaultExecutor};
 
 fn main() {
     let mut env = Environment::new();
@@ -41,9 +41,10 @@ fn main() {
             }
         };
 
-        let status = executor::execute(&expanded, &mut env);
-        if status == 0 {
-            // by exit status
+        let mut executor = DefaultExecutor;
+        match executor.exec(&expanded, &mut env) {
+            Ok(_) => continue,
+            Err(e) => eprintln!("execution error: {}", e),
         }
     }
 }

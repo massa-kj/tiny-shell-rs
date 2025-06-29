@@ -108,5 +108,85 @@ mod tests {
         assert!(matches!(result, Ok(0)));
         assert_eq!(exec.log, vec!["pipeline", "command: ls []", "command: wc []"]);
     }
+
+    #[test]
+    fn test_redirect() {
+        let ast = AstNode::Redirect {
+            node: Box::new(dummy_cmd("ls", &[])),
+            kind: RedirectKind::Out,
+            file: "out.txt".to_string(),
+        };
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(exec.log, vec!["redirect: Out out.txt", "command: ls []"]);
+    }
+
+    #[test]
+    fn test_subshell() {
+        let ast = AstNode::Subshell(Box::new(dummy_cmd("ls", &[])));
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(exec.log, vec!["subshell", "command: ls []"]);
+    }
+
+    #[test]
+    fn test_complex_pipeline_with_redirect_and_subshell() {
+        // (ls | grep foo) > out.txt
+        let ast = AstNode::Redirect {
+            node: Box::new(AstNode::Subshell(Box::new(AstNode::Pipeline(
+                Box::new(dummy_cmd("ls", &[])),
+                Box::new(dummy_cmd("grep", &["foo"])),
+            )))),
+            kind: RedirectKind::Out,
+            file: "out.txt".to_string(),
+        };
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(
+            exec.log,
+            vec![
+                "redirect: Out out.txt",
+                "subshell",
+                "pipeline",
+                "command: ls []",
+                "command: grep [\"foo\"]"
+            ]
+        );
+    }
+
+    #[test]
+    fn test_sequence_and_and_or() {
+        // echo hi && false || echo fallback; echo done
+        let ast = AstNode::Sequence(
+            Box::new(AstNode::Or(
+                Box::new(AstNode::And(
+                    Box::new(dummy_cmd("echo", &["hi"])),
+                    Box::new(dummy_cmd("false", &[])),
+                )),
+                Box::new(dummy_cmd("echo", &["fallback"])),
+            )),
+            Box::new(dummy_cmd("echo", &["done"])),
+        );
+        let mut env = Environment::new();
+        let mut exec = TestExecutor::new();
+        let result = exec.exec(&ast, &mut env);
+        assert!(matches!(result, Ok(0)));
+        assert_eq!(
+            exec.log,
+            vec![
+                "sequence", "or", "and",
+                "command: echo [\"hi\"]",
+                "command: false []",
+                "command: echo [\"fallback\"]",
+                "command: echo [\"done\"]"
+            ]
+        );
+    }
 }
 

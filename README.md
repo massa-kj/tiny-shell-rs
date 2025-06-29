@@ -23,10 +23,10 @@ The shell consists of several components that work together in a pipeline fashio
 - Built-in commands (e.g., `cd`, `exit`, `help`)
 - Path resolution (e.g., `command` vs `./command`)
 - Pipe support (e.g., `ls | grep txt`)
+- Redirection support (e.g., `command > file`, `command < file`)
 
 ### Planned
 
-- Redirection support (e.g., `command > file`, `command < file`)
 - Background execution (e.g., `command &`)
 - Job control (e.g., `jobs`, `fg`, `bg`)
 - Environment variable expansion (e.g., `$HOME`, `${VAR}`)

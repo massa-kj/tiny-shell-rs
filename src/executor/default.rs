@@ -86,6 +86,47 @@ impl DefaultExecutor {
         Ok(status.code().unwrap_or(1))
     }
 
+    fn exec_redirect(
+        &mut self,
+        node: &AstNode,
+        kind: &RedirectKind,
+        file: &String,
+        env: &mut Environment,
+    ) -> ExecResult {
+        use std::fs::File;
+        use std::process::Stdio;
+
+        // 1. 全リダイレクトをVecでフラットに集める
+        let mut redirects = vec![RedirectInfo { kind, file }];
+        let (cmd_node, mut more_redirects) = flatten_redirects(node, Vec::new());
+        redirects.append(&mut more_redirects);
+
+        // 2. ファイルハンドルを種別ごとにセット
+        let mut stdin_file = None;
+        let mut stdout_file = None;
+        let mut stderr_file = None;
+
+        for r in redirects {
+            match r.kind {
+                RedirectKind::In => stdin_file = Some(File::open(r.file).map_err(ExecError::Io)?),
+                RedirectKind::Out => stdout_file = Some(File::create(r.file).map_err(ExecError::Io)?),
+                // RedirectKind::Append => {
+                //     stdout_file = Some(
+                //         std::fs::OpenOptions::new()
+                //             .write(true)
+                //             .append(true)
+                //             .create(true)
+                //             .open(r.file)
+                //             .map_err(ExecError::Io)?
+                //     );
+                // }
+                // RedirectKind::Err => stderr_file = Some(File::create(r.file).map_err(ExecError::Io)?),
+            }
+        }
+
+        self.exec_with_stdio(cmd_node, env, stdout_file, stdin_file, stderr_file)
+    }
+
     fn exec_pipeline(
         &mut self,
         node: &AstNode,
@@ -125,6 +166,131 @@ impl DefaultExecutor {
         }
 
         // すべての子プロセスをwait（実用ではエラー処理やパイプのクローズも忘れずに）
+        let mut status = 0;
+        for mut child in children {
+            status = child.wait().map_err(ExecError::Io)?.code().unwrap_or(1);
+        }
+        Ok(status)
+    }
+
+    fn exec_subshell(&mut self, sub: &AstNode, env: &mut Environment) -> ExecResult {
+        // todo: fork/exec or Command::new("sh -c ...")
+        // Run sub shell in a new environment
+        println!("exec_subshell");
+        self.exec(sub, &mut env.clone())
+    }
+
+    fn exec_with_stdio(
+        &mut self,
+        node: &AstNode,
+        env: &mut Environment,
+        stdout: Option<File>,
+        stdin: Option<File>,
+        stderr: Option<File>,
+    ) -> ExecResult {
+        match node {
+            AstNode::Command(cmd) => {
+                let path = match resolve_command_path(&cmd.name) {
+                    Some(p) => p,
+                    None => {
+                        eprintln!("tiny-shell: command not found or failed");
+                        return Ok(127);
+                    }
+                };
+                let mut command = Command::new(path);
+
+                for arg in &cmd.args {
+                    command.arg(arg);
+                }
+                // for (k, v) in &cmd.assignments {
+                //     command.env(k, v);
+                // }
+                // for (k, v) in &env.vars {
+                //     command.env(k, v);
+                // }
+
+                // 標準入出力の差し替え
+                if let Some(f) = stdin {
+                    command.stdin(Stdio::from(f));
+                } else {
+                    command.stdin(Stdio::inherit());
+                }
+                if let Some(f) = stdout {
+                    command.stdout(Stdio::from(f));
+                } else {
+                    command.stdout(Stdio::inherit());
+                }
+                if let Some(f) = stderr {
+                    command.stderr(Stdio::from(f));
+                } else {
+                    command.stderr(Stdio::inherit());
+                }
+
+                let status = command.status().map_err(ExecError::Io)?;
+                Ok(status.code().unwrap_or(1))
+            }
+            AstNode::Pipeline(_, _) => {
+                // パイプラインはexec_pipelineで処理
+                self.exec_pipeline_with_redirect(node, env, stdout, stdin, stderr)
+            }
+            _ => self.exec(node, env)
+        }
+    }
+
+    fn exec_pipeline_with_redirect(
+        &mut self,
+        node: &AstNode,
+        env: &mut Environment,
+        stdout: Option<File>,
+        stdin: Option<File>,
+        stderr: Option<File>,
+    ) -> ExecResult {
+        use std::process::Stdio;
+
+        let mut cmds = Vec::new();
+        flatten_pipeline(node, &mut cmds);
+
+        let n = cmds.len();
+        let mut children = Vec::with_capacity(n);
+
+        let mut prev_stdout = None;
+
+        for (i, &cmd_node) in cmds.iter().enumerate() {
+            let mut command = self.prepare_command(cmd_node, env)?;
+
+            // 入力リダイレクトはパイプラインの最初だけ
+            if i == 0 {
+                if let Some(ref f) = stdin {
+                    command.stdin(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
+                }
+            } else if let Some(stdin) = prev_stdout.take() {
+                command.stdin(stdin);
+            }
+
+            // 出力リダイレクトはパイプラインの最後だけ
+            if i == n - 1 {
+                if let Some(ref f) = stdout {
+                    command.stdout(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
+                }
+            } else {
+                let (pipe_read, pipe_write) = nix::unistd::pipe()
+                    .map_err(|e| ExecError::Io(std::io::Error::from_raw_os_error(e as i32)))?;
+                let write = Stdio::from(pipe_write);
+                command.stdout(write);
+                prev_stdout = Some(Stdio::from(pipe_read));
+            }
+
+            // エラーストリーム（必要なら最後のコマンドだけでOK）
+            if i == n - 1 {
+                if let Some(ref f) = stderr {
+                    command.stderr(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
+                }
+            }
+
+            let child = command.spawn().map_err(ExecError::Io)?;
+            children.push(child);
+        }
+
         let mut status = 0;
         for mut child in children {
             status = child.wait().map_err(ExecError::Io)?.code().unwrap_or(1);
@@ -192,6 +358,24 @@ fn flatten_pipeline<'a>(node: &'a AstNode, result: &mut Vec<&'a AstNode>) {
             flatten_pipeline(right, result);
         }
         _ => result.push(node),
+    }
+}
+
+#[derive(Debug)]
+pub struct RedirectInfo<'a> {
+    pub kind: &'a RedirectKind,
+    pub file: &'a String,
+}
+
+fn flatten_redirects<'a>(mut node: &'a AstNode, mut redirects: Vec<RedirectInfo<'a>>) -> (&'a AstNode, Vec<RedirectInfo<'a>>) {
+    loop {
+        match node {
+            AstNode::Redirect { node: inner, kind, file } => {
+                redirects.push(RedirectInfo { kind, file });
+                node = inner;
+            }
+            _ => return (node, redirects),
+        }
     }
 }
 

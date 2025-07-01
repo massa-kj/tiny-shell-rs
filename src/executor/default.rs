@@ -51,8 +51,7 @@ impl DefaultExecutor {
         // Built-in command execution
         let builtin_manager = BuiltinManager::new();
         if builtin_manager.is_builtin(&cmd.name) {
-            // return builtin_manager.execute(&cmd.name, &cmd.args, env);
-            return Ok(0)
+            return builtin_manager.execute(&cmd.name, &cmd.args, env);
         }
 
         let path = match resolve_command_path(&cmd.name) {

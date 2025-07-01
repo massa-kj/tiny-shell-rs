@@ -10,6 +10,7 @@ pub enum ExecError {
     PipelineError(String),
     RedirectError(String),
     SubshellError(String),
+    NoSuchBuiltin(String),
     Custom(String),
 }
 
@@ -23,6 +24,7 @@ impl fmt::Display for ExecError {
             ExecError::PipelineError(msg) => write!(f, "Pipeline error: {}", msg),
             ExecError::RedirectError(msg) => write!(f, "Redirect error: {}", msg),
             ExecError::SubshellError(msg) => write!(f, "Subshell error: {}", msg),
+            ExecError::NoSuchBuiltin(name) => write!(f, "No such builtin command: {}", name),
             ExecError::Custom(msg) => write!(f, "Execution error: {}", msg),
         }
     }

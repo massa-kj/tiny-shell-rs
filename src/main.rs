@@ -34,7 +34,13 @@ fn main() {
             }
         };
 
-        let mut parser = DefaultParser::new(&tokens);
+        let mut parser = match tokens {
+            Ok(ref toks) => DefaultParser::new(toks),
+            Err(ref e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
         let ast = parser.parse();
 
         let expanded = match ast {

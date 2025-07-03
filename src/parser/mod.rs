@@ -14,7 +14,13 @@ mod tests {
 
     fn lex_and_parse(src: &str) -> AstNode {
         let tokens = Lexer::tokenize(src);
-        let mut parser = DefaultParser::new(&tokens);
+        let mut parser = match tokens {
+            Ok(ref toks) => DefaultParser::new(toks),
+            Err(ref e) => {
+                eprintln!("{}", e);
+                panic!("Failed to tokenize input");
+            }
+        };
         parser.parse().unwrap()
     }
 
@@ -245,7 +251,13 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let tokens = Lexer::tokenize("&& ls");
-        let mut parser = DefaultParser::new(&tokens);
+        let mut parser = match tokens {
+            Ok(ref toks) => DefaultParser::new(toks),
+            Err(ref e) => {
+                eprintln!("{}", e);
+                panic!("Failed to tokenize input");
+            }
+        };
         assert!(parser.parse().is_err());
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::ast::{TokenKind};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -6,10 +7,19 @@ pub enum LexError {
     UnterminatedQuote(char),
 }
 
+impl fmt::Display for LexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LexError::UnexpectedChar(c, pos) => write!(f, "Unexpected character '{}' at position {}", c, pos),
+            LexError::UnterminatedQuote(q) => write!(f, "Unterminated quote '{}'", q),
+        }
+    }
+}
+
 pub struct Lexer;
 
 impl Lexer {
-    pub fn tokenize(line: &str) -> Vec<TokenKind> {
+    pub fn tokenize(line: &str) -> Result<Vec<TokenKind>, LexError> {
         let mut tokens = Vec::new();
         let mut chars = line.chars().peekable();
         let mut buf = String::new();
@@ -119,7 +129,7 @@ impl Lexer {
         }
         tokens.push(TokenKind::Eof);
 
-        tokens
+        Ok(tokens)
     }
 }
 

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io;
+use crate::lexer::LexError;
 
 #[derive(Debug)]
 pub enum ExecError {
@@ -11,6 +12,7 @@ pub enum ExecError {
     RedirectError(String),
     SubshellError(String),
     NoSuchBuiltin(String),
+    Lex(LexError),
     Custom(String),
 }
 
@@ -25,6 +27,7 @@ impl fmt::Display for ExecError {
             ExecError::RedirectError(msg) => write!(f, "Redirect error: {}", msg),
             ExecError::SubshellError(msg) => write!(f, "Subshell error: {}", msg),
             ExecError::NoSuchBuiltin(name) => write!(f, "No such builtin command: {}", name),
+            ExecError::Lex(e) => write!(f, "Lexing error: {}", e),
             ExecError::Custom(msg) => write!(f, "Execution error: {}", msg),
         }
     }

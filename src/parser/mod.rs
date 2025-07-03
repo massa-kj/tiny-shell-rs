@@ -10,9 +10,10 @@ mod tests {
     use super::*;
     use crate::ast::{AstNode, RedirectKind, CommandNode, CommandKind, TokenKind};
     use crate::parser::default::DefaultParser;
+    use crate::Lexer;
 
     fn lex_and_parse(src: &str) -> AstNode {
-        let tokens = crate::lexer::tokenize(src);
+        let tokens = Lexer::tokenize(src);
         let mut parser = DefaultParser::new(&tokens);
         parser.parse().unwrap()
     }
@@ -243,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_parse_error() {
-        let tokens = crate::lexer::tokenize("&& ls");
+        let tokens = Lexer::tokenize("&& ls");
         let mut parser = DefaultParser::new(&tokens);
         assert!(parser.parse().is_err());
     }

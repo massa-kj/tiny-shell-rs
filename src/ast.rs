@@ -14,6 +14,7 @@ pub enum TokenKind {
     Or,                        // ||
     LParen,                    // (
     RParen,                    // )
+    Eof,
 }
 
 #[derive(Debug, Clone, PartialEq)]

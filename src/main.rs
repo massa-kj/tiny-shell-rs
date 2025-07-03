@@ -10,6 +10,7 @@ mod error;
 
 use environment::Environment;
 use prompt::ShellPrompt;
+use crate::lexer::{Lexer};
 use crate::parser::{Parser, default::DefaultParser};
 use crate::executor::{Executor, default::DefaultExecutor};
 
@@ -23,16 +24,19 @@ fn main() {
             Ok(l) => l,
             Err(_) => break,
         };
+
         let tokens = match &line {
             Some(l) if l.trim().is_empty() => continue,
-            Some(l) => lexer::tokenize(l),
+            Some(l) => Lexer::tokenize(l),
             None => {
                 // End with EOF (e.g. Ctrl+D)
                 break;
             }
         };
+
         let mut parser = DefaultParser::new(&tokens);
         let ast = parser.parse();
+
         let expanded = match ast {
             Ok(ast) => expander::expand(&ast, &env),
             Err(e) => {

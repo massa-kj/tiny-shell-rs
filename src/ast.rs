@@ -1,22 +1,3 @@
-// #[derive(Debug)]
-// pub struct Token {
-//     pub kind: TokenKind,
-//     pub text: String,
-// }
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenKind {
-    Word(String),              // command or argument
-    Pipe,                      // |
-    RedirectIn,                // <
-    RedirectOut,               // > (file, append)
-    Semicolon,                 // ;
-    And,                       // &&
-    Or,                        // ||
-    LParen,                    // (
-    RParen,                    // )
-    Eof,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Command(CommandNode),

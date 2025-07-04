@@ -8,7 +8,8 @@ pub trait Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, RedirectKind, CommandNode, CommandKind, TokenKind};
+    use crate::ast::{AstNode, RedirectKind, CommandNode, CommandKind};
+    use crate::lexer::token::{TokenKind};
     use crate::parser::default::DefaultParser;
     use crate::lexer::Lexer;
 

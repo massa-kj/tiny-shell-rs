@@ -1,5 +1,6 @@
+pub mod token;
 use std::fmt;
-use crate::ast::{TokenKind};
+use self::token::{TokenKind};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LexError {

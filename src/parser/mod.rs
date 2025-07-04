@@ -10,7 +10,7 @@ mod tests {
     use super::*;
     use crate::ast::{AstNode, RedirectKind, CommandNode, CommandKind, TokenKind};
     use crate::parser::default::DefaultParser;
-    use crate::Lexer;
+    use crate::lexer::Lexer;
 
     fn lex_and_parse(src: &str) -> AstNode {
         let tokens = Lexer::tokenize(src);

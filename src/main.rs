@@ -1,20 +1,10 @@
-mod lexer;
-mod parser;
-mod ast;
-mod expander;
-mod executor;
-mod environment;
-mod prompt;
-mod builtins;
-mod error;
-
-use environment::Environment;
-use prompt::ShellPrompt;
-use crate::lexer::{Lexer};
-use crate::parser::{Parser, default::DefaultParser};
-use crate::executor::{Executor, default::DefaultExecutor};
-
 fn main() {
+    use tiny_shell_rs::lexer::{Lexer};
+    use tiny_shell_rs::parser::{Parser, default::DefaultParser};
+    use tiny_shell_rs::expander;
+    use tiny_shell_rs::environment::Environment;
+    use tiny_shell_rs::prompt::ShellPrompt;
+    use tiny_shell_rs::executor::{Executor, default::DefaultExecutor};
     let mut env = Environment::new();
     let prompt = ShellPrompt::new();
 

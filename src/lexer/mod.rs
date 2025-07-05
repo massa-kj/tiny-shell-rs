@@ -1,6 +1,7 @@
 pub mod token;
+
 use std::fmt;
-use self::token::{TokenKind};
+use self::token::{Token, TokenKind};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LexError {
@@ -20,126 +21,215 @@ impl fmt::Display for LexError {
 pub struct Lexer;
 
 impl Lexer {
-    pub fn tokenize(line: &str) -> Result<Vec<TokenKind>, LexError> {
+    pub fn tokenize(line: &str) -> Result<Vec<Token>, LexError> {
         let mut tokens = Vec::new();
-        let mut chars = line.chars().peekable();
+        let chars: Vec<char> = line.chars().collect();
+        let mut pos = 0;
         let mut buf = String::new();
-        // let chars: Vec<char> = input.chars().collect();
-        // let mut pos = 0;
+        let mut token_start = 0;
 
-        // while pos < chars.len() {
-        //     let start = pos;
-        //     let ch = chars[pos];
-        while let Some(&ch) = chars.peek() {
+        while pos < chars.len() {
+            let ch = chars[pos];
             match ch {
                 ' ' | '\t' | '\n' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
+                    pos += 1;
                 }
                 '|' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    if chars.peek() == Some(&'|') {
-                        chars.next();
-                        tokens.push(TokenKind::Or);
+                    let start = pos;
+                    pos += 1;
+                    if pos < chars.len() && chars[pos] == '|' {
+                        pos += 1;
+                        tokens.push(Token {
+                            kind: TokenKind::Or,
+                            lexeme: "||".to_string(),
+                            span: (start, pos),
+                        });
                     } else {
-                        tokens.push(TokenKind::Pipe);
+                        tokens.push(Token {
+                            kind: TokenKind::Pipe,
+                            lexeme: "|".to_string(),
+                            span: (start, pos),
+                        });
                     }
                 }
                 '&' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    if chars.peek() == Some(&'&') {
-                        chars.next();
-                        tokens.push(TokenKind::And);
+                    let start = pos;
+                    pos += 1;
+                    if pos < chars.len() && chars[pos] == '&' {
+                        pos += 1;
+                        tokens.push(Token {
+                            kind: TokenKind::And,
+                            lexeme: "&&".to_string(),
+                            span: (start, pos),
+                        });
                     }
                 }
                 '>' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    tokens.push(TokenKind::RedirectOut);
+                    let start = pos;
+                    pos += 1;
+                    tokens.push(Token {
+                        kind: TokenKind::RedirectOut,
+                        lexeme: ">".to_string(),
+                        span: (start, pos),
+                    });
                 }
                 '<' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    tokens.push(TokenKind::RedirectIn);
+                    let start = pos;
+                    pos += 1;
+                    tokens.push(Token {
+                        kind: TokenKind::RedirectIn,
+                        lexeme: "<".to_string(),
+                        span: (start, pos),
+                    });
                 }
                 ';' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    tokens.push(TokenKind::Semicolon);
+                    let start = pos;
+                    pos += 1;
+                    tokens.push(Token {
+                        kind: TokenKind::Semicolon,
+                        lexeme: ";".to_string(),
+                        span: (start, pos),
+                    });
                 }
                 '(' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    tokens.push(TokenKind::LParen);
+                    let start = pos;
+                    pos += 1;
+                    tokens.push(Token {
+                        kind: TokenKind::LParen,
+                        lexeme: "(".to_string(),
+                        span: (start, pos),
+                    });
                 }
                 ')' => {
                     if !buf.is_empty() {
-                        tokens.push(TokenKind::Word(buf.clone()));
+                        tokens.push(Token {
+                            kind: TokenKind::Word,
+                            lexeme: buf.clone(),
+                            span: (token_start, pos),
+                        });
                         buf.clear();
                     }
-                    chars.next();
-                    tokens.push(TokenKind::RParen);
+                    let start = pos;
+                    pos += 1;
+                    tokens.push(Token {
+                        kind: TokenKind::RParen,
+                        lexeme: ")".to_string(),
+                        span: (start, pos),
+                    });
                 }
                 '"' | '\'' => {
                     let quote = ch;
-                    chars.next();
-                    while let Some(&nc) = chars.peek() {
+                    let start = pos;
+                    pos += 1;
+                    let mut quoted = String::new();
+                    while pos < chars.len() {
+                        let nc = chars[pos];
                         if nc == quote {
-                            chars.next();
+                            pos += 1;
                             break;
                         } else {
-                            buf.push(nc);
-                            chars.next();
+                            quoted.push(nc);
+                            pos += 1;
                         }
                     }
                     // TODO: Added support for cases where quotes are not closed
                     // TODO: escape char
+                    tokens.push(Token {
+                        kind: if quote == '"' { TokenKind::DoubleQuote } else { TokenKind::SingleQuote },
+                        lexeme: quoted,
+                        span: (start, pos),
+                    });
                 }
                 _ => {
+                    if buf.is_empty() {
+                        token_start = pos;
+                    }
                     buf.push(ch);
-                    chars.next();
+                    pos += 1;
                 }
             }
         }
 
         if !buf.is_empty() {
-            tokens.push(TokenKind::Word(buf));
+            tokens.push(Token {
+                kind: TokenKind::Word,
+                lexeme: buf,
+                span: (token_start, pos),
+            });
         }
-        tokens.push(TokenKind::Eof);
+
+        tokens.push(Token {
+            kind: TokenKind::Eof,
+            lexeme: "".to_string(),
+            span: (pos, pos),
+        });
 
         Ok(tokens)
     }
 }
 
-// #[test]
-// fn test_tokenize_basic() {
-//     let tokens = tokenize("echo hello | grep world").unwrap();
-//     assert_eq!(tokens[0].kind, TokenKind::Word);
-//     assert_eq!(tokens[0].lexeme, "echo");
-//     assert_eq!(tokens[2].kind, TokenKind::Pipe);
-//     assert_eq!(tokens[2].lexeme, "|");
-// }
+#[test]
+fn test_tokenize_basic() {
+    let tokens = Lexer::tokenize("echo hello | grep world").unwrap();
+    assert_eq!(tokens[0].kind, TokenKind::Word);
+    assert_eq!(tokens[0].lexeme, "echo");
+    assert_eq!(tokens[2].kind, TokenKind::Pipe);
+    assert_eq!(tokens[2].lexeme, "|");
+}
 

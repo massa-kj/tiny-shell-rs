@@ -5,6 +5,5 @@ pub mod expander;
 pub mod executor;
 pub mod environment;
 pub mod prompt;
-pub mod builtins;
 pub mod error;
 

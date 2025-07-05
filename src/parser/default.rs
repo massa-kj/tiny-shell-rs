@@ -1,4 +1,4 @@
-use crate::parser::Parser;
+use crate::parser::{Parser, ParseError};
 use crate::ast::{AstNode, CommandNode};
 use crate::lexer::token::{Token, TokenKind};
 
@@ -22,11 +22,15 @@ impl<'a> DefaultParser<'a> {
         }
         tok
     }
-    fn expect_word(&mut self) -> Result<String, String> {
+    fn expect_word(&mut self) -> Result<String, ParseError> {
         match self.next() {
             Some(tok) if matches!(tok.kind, TokenKind::Word) => Ok(tok.lexeme.clone()),
-            Some(t) => Err(format!("unexpected token: {:?}", t.kind)),
-            None => Err("unexpected end of input".to_string()),
+            Some(t) => Err(ParseError::UnexpectedToken {
+                found: format!("{:?}", t.kind),
+                expected: vec!["Word".to_string()],
+                pos: self.pos,
+            }),
+            None => Err(ParseError::EmptyInput),
         }
     }
     fn consume(&mut self, pat: &TokenKind) -> bool {
@@ -42,13 +46,16 @@ impl<'a> DefaultParser<'a> {
 
 // Top-down recursive descent parser
 impl<'a> Parser for DefaultParser<'a> {
-    fn parse(&mut self) -> Result<AstNode, String> {
+    fn parse(&mut self) -> Result<AstNode, ParseError> {
+        if self.tokens.is_empty() {
+            return Err(ParseError::EmptyInput);
+        }
         self.parse_sequence()
     }
 }
 
 impl<'a> DefaultParser<'a> {
-    fn parse_sequence(&mut self) -> Result<AstNode, String> {
+    fn parse_sequence(&mut self) -> Result<AstNode, ParseError> {
         let mut node = self.parse_and_or()?;
         while self.consume(&TokenKind::Semicolon) {
             let rhs = self.parse_and_or()?;
@@ -57,7 +64,7 @@ impl<'a> DefaultParser<'a> {
         Ok(node)
     }
 
-    fn parse_and_or(&mut self) -> Result<AstNode, String> {
+    fn parse_and_or(&mut self) -> Result<AstNode, ParseError> {
         let mut node = self.parse_pipeline()?;
         loop {
             if self.consume(&TokenKind::And) {
@@ -73,7 +80,7 @@ impl<'a> DefaultParser<'a> {
         Ok(node)
     }
 
-    fn parse_pipeline(&mut self) -> Result<AstNode, String> {
+    fn parse_pipeline(&mut self) -> Result<AstNode, ParseError> {
         // First, get the smallest syntactic unit.
         let mut node = self.parse_command_like()?;
         // Connected by pipes
@@ -86,11 +93,13 @@ impl<'a> DefaultParser<'a> {
     }
 
     // build "pipe elements" such as commands and subshells
-    fn parse_command_like(&mut self) -> Result<AstNode, String> {
+    fn parse_command_like(&mut self) -> Result<AstNode, ParseError> {
         if self.consume(&TokenKind::LParen) {
             let node = self.parse_sequence()?;
             if !self.consume(&TokenKind::RParen) {
-                return Err("missing ')'".to_string());
+                return Err(ParseError::UnmatchedParen {
+                    pos: self.pos,
+                });
             }
             Ok(AstNode::Subshell(Box::new(node)))
         } else {
@@ -105,7 +114,7 @@ impl<'a> DefaultParser<'a> {
                 }
             }
             if args.is_empty() {
-                return Err("expected command".to_string());
+                return Err(ParseError::EmptyInput);
             }
             Ok(AstNode::Command(CommandNode {
                 name: args[0].clone(),
@@ -116,7 +125,7 @@ impl<'a> DefaultParser<'a> {
     }
 
     // Add a redirect after any node
-    fn parse_with_redirect(&mut self, mut node: AstNode) -> Result<AstNode, String> {
+    fn parse_with_redirect(&mut self, mut node: AstNode) -> Result<AstNode, ParseError> {
         loop {
             if self.consume(&TokenKind::RedirectOut) {
                 let filename = self.expect_word()?;

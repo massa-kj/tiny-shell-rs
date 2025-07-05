@@ -36,7 +36,7 @@ fn main() {
         let expanded = match ast {
             Ok(ast) => expander::expand(&ast, &env),
             Err(e) => {
-                eprintln!("Parse error: {}", e);
+                eprintln!("{}", e);
                 continue;
             }
         };

@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io;
 use crate::lexer::LexError;
+use crate::parser::ParseError;
 
 #[derive(Debug)]
 pub enum ExecError {
@@ -13,6 +14,7 @@ pub enum ExecError {
     SubshellError(String),
     NoSuchBuiltin(String),
     Lex(LexError),
+    Parse(ParseError),
     Custom(String),
 }
 
@@ -28,6 +30,7 @@ impl fmt::Display for ExecError {
             ExecError::SubshellError(msg) => write!(f, "Subshell error: {}", msg),
             ExecError::NoSuchBuiltin(name) => write!(f, "No such builtin command: {}", name),
             ExecError::Lex(e) => write!(f, "Lexing error: {}", e),
+            ExecError::Parse(e) => write!(f, "Parsing error: {}", e),
             ExecError::Custom(msg) => write!(f, "Execution error: {}", msg),
         }
     }

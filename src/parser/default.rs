@@ -1,21 +1,21 @@
 use crate::parser::Parser;
 use crate::ast::{AstNode, CommandNode};
-use crate::lexer::token::{TokenKind};
+use crate::lexer::token::{Token, TokenKind};
 
 pub struct DefaultParser<'a> {
-    tokens: &'a [TokenKind],
+    tokens: &'a [Token],
     pos: usize,
 }
 
 impl<'a> DefaultParser<'a> {
-    pub fn new(tokens: &'a [TokenKind]) -> Self {
+    pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, pos: 0 }
     }
 
-    fn peek(&self) -> Option<&TokenKind> {
+    fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.pos)
     }
-    fn next(&mut self) -> Option<&TokenKind> {
+    fn next(&mut self) -> Option<&Token> {
         let tok = self.tokens.get(self.pos);
         if tok.is_some() {
             self.pos += 1;
@@ -24,18 +24,19 @@ impl<'a> DefaultParser<'a> {
     }
     fn expect_word(&mut self) -> Result<String, String> {
         match self.next() {
-            Some(TokenKind::Word(s)) => Ok(s.clone()),
-            Some(t) => Err(format!("unexpected token: {:?}", t)),
+            Some(tok) if matches!(tok.kind, TokenKind::Word) => Ok(tok.lexeme.clone()),
+            Some(t) => Err(format!("unexpected token: {:?}", t.kind)),
             None => Err("unexpected end of input".to_string()),
         }
     }
     fn consume(&mut self, pat: &TokenKind) -> bool {
-        if self.tokens.get(self.pos) == Some(pat) {
-            self.pos += 1;
-            true
-        } else {
-            false
+        if let Some(tok) = self.tokens.get(self.pos) {
+            if &tok.kind == pat {
+                self.pos += 1;
+                return true;
+            }
         }
+        false
     }
 }
 
@@ -95,9 +96,13 @@ impl<'a> DefaultParser<'a> {
         } else {
             // Command alone
             let mut args = Vec::new();
-            while let Some(TokenKind::Word(s)) = self.peek() {
-                args.push(s.clone());
-                self.pos += 1;
+            while let Some(tok) = self.peek() {
+                if let TokenKind::Word = &tok.kind {
+                    args.push(tok.lexeme.clone());
+                    self.pos += 1;
+                } else {
+                    break;
+                }
             }
             if args.is_empty() {
                 return Err("expected command".to_string());

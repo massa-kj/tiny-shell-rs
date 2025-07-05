@@ -4,7 +4,7 @@ fn main() {
     use tiny_shell_rs::expander;
     use tiny_shell_rs::environment::Environment;
     use tiny_shell_rs::prompt::ShellPrompt;
-    use tiny_shell_rs::executor::{Executor, default::DefaultExecutor};
+    use tiny_shell_rs::executor::{Executor, DefaultExecutor};
     let mut env = Environment::new();
     let prompt = ShellPrompt::new();
 

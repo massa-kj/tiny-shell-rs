@@ -1,53 +1,39 @@
 use std::fmt;
-use std::io;
 use crate::lexer::LexError;
 use crate::parser::ParseError;
+use crate::executor::ExecError;
 
 #[derive(Debug)]
-pub enum ExecError {
-    CommandNotFound(String),
-    Io(io::Error),
-    PermissionDenied(String),
-    InvalidArgument(String),
-    PipelineError(String),
-    RedirectError(String),
-    SubshellError(String),
-    NoSuchBuiltin(String),
+pub enum ShellError {
+    Io(std::io::Error),
     Lex(LexError),
     Parse(ParseError),
-    Custom(String),
+    Exec(ExecError),
 }
 
-impl fmt::Display for ExecError {
+impl fmt::Display for ShellError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecError::CommandNotFound(cmd) => write!(f, "Command not found: {}", cmd),
-            ExecError::Io(e) => write!(f, "IO error: {}", e),
-            ExecError::PermissionDenied(cmd) => write!(f, "Permission denied: {}", cmd),
-            ExecError::InvalidArgument(arg) => write!(f, "Invalid argument: {}", arg),
-            ExecError::PipelineError(msg) => write!(f, "Pipeline error: {}", msg),
-            ExecError::RedirectError(msg) => write!(f, "Redirect error: {}", msg),
-            ExecError::SubshellError(msg) => write!(f, "Subshell error: {}", msg),
-            ExecError::NoSuchBuiltin(name) => write!(f, "No such builtin command: {}", name),
-            ExecError::Lex(e) => write!(f, "Lexing error: {}", e),
-            ExecError::Parse(e) => write!(f, "Parsing error: {}", e),
-            ExecError::Custom(msg) => write!(f, "Execution error: {}", msg),
+            ShellError::Io(e) => write!(f, "IO error: {}", e),
+            ShellError::Lex(e) => write!(f, "Lexing error: {}", e),
+            ShellError::Parse(e) => write!(f, "Parsing error: {}", e),
+            ShellError::Exec(e) => write!(f, "Execution error: {}", e),
         }
     }
 }
 
-impl std::error::Error for ExecError {
+impl std::error::Error for ShellError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ExecError::Io(e) => Some(e),
+            ShellError::Io(e) => Some(e),
             _ => None,
         }
     }
 }
 
-impl From<std::io::Error> for ExecError {
+impl From<std::io::Error> for ShellError {
     fn from(e: std::io::Error) -> Self {
-        ExecError::Io(e)
+        ShellError::Io(e)
     }
 }
 

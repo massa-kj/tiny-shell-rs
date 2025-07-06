@@ -7,9 +7,8 @@ use nix;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
 // use crate::redirect::{RedirectKind};
-// use crate::error::ExecError;
-use crate::executor::{ Executor, ExecResult };
-use crate::error::ExecError;
+use crate::executor::{ Executor, ExecStatus };
+use super::executor::ExecError;
 use super::builtins::BuiltinManager;
 
 pub struct DefaultExecutor;
@@ -17,7 +16,7 @@ pub struct DefaultExecutor;
 // pub struct LoggingExecutor;
 
 impl Executor for DefaultExecutor {
-    fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecResult {
+    fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => self.exec_command(cmd, env),
             AstNode::Pipeline(_, _) => self.exec_pipeline(node, env),
@@ -47,7 +46,7 @@ impl Executor for DefaultExecutor {
 }
 
 impl DefaultExecutor {
-    fn exec_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecResult {
+    fn exec_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
         // Built-in command execution
         let builtin_manager = BuiltinManager::new();
         if builtin_manager.is_builtin(&cmd.name) {
@@ -91,7 +90,7 @@ impl DefaultExecutor {
         kind: &RedirectKind,
         file: &String,
         env: &mut Environment,
-    ) -> ExecResult {
+    ) -> ExecStatus {
         use std::fs::File;
         use std::process::Stdio;
 
@@ -130,7 +129,7 @@ impl DefaultExecutor {
         &mut self,
         node: &AstNode,
         env: &mut Environment,
-    ) -> ExecResult {
+    ) -> ExecStatus {
         use std::process::{Command, Stdio};
         use std::os::unix::io::FromRawFd;
 
@@ -172,7 +171,7 @@ impl DefaultExecutor {
         Ok(status)
     }
 
-    fn exec_subshell(&mut self, sub: &AstNode, env: &mut Environment) -> ExecResult {
+    fn exec_subshell(&mut self, sub: &AstNode, env: &mut Environment) -> ExecStatus {
         // todo: fork/exec or Command::new("sh -c ...")
         // Run sub shell in a new environment
         println!("exec_subshell");
@@ -186,7 +185,7 @@ impl DefaultExecutor {
         stdout: Option<File>,
         stdin: Option<File>,
         stderr: Option<File>,
-    ) -> ExecResult {
+    ) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => {
                 let path = match resolve_command_path(&cmd.name) {
@@ -243,7 +242,7 @@ impl DefaultExecutor {
         stdout: Option<File>,
         stdin: Option<File>,
         stderr: Option<File>,
-    ) -> ExecResult {
+    ) -> ExecStatus {
         use std::process::Stdio;
 
         let mut cmds = Vec::new();

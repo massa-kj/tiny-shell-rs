@@ -1,15 +1,12 @@
-use std::env;
 use std::fs::File;
-use std::fs::{self};
-use std::path::Path;
 use std::process::{Command, Stdio};
 use nix;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
-// use crate::redirect::{RedirectKind};
 use crate::executor::{ Executor, ExecStatus };
 use super::executor::ExecError;
 use super::builtins::BuiltinManager;
+use super::path_resolver::PathResolver;
 
 pub struct DefaultExecutor;
 // pub struct DryRunExecutor;
@@ -53,7 +50,8 @@ impl DefaultExecutor {
             return builtin_manager.execute(&cmd.name, &cmd.args, env);
         }
 
-        let path = match resolve_command_path(&cmd.name) {
+        let resolver = PathResolver;
+        let path = match resolver.resolve(&cmd.name) {
             Some(p) => p,
             None => {
                 eprintln!("tiny-shell: command not found or failed");
@@ -188,7 +186,8 @@ impl DefaultExecutor {
     ) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => {
-                let path = match resolve_command_path(&cmd.name) {
+                let resolver = PathResolver;
+                let path = match resolver.resolve(&cmd.name) {
                     Some(p) => p,
                     None => {
                         eprintln!("tiny-shell: command not found or failed");
@@ -303,7 +302,8 @@ impl DefaultExecutor {
     ) -> Result<Command, ExecError> {
         // AstNode::CommandからCommand構築
         if let AstNode::Command(cmd) = node {
-            let path = match resolve_command_path(&cmd.name) {
+            let resolver = PathResolver;
+            let path = match resolver.resolve(&cmd.name) {
                 Some(p) => p,
                 None => {
                     return Err(ExecError::Custom("Not found command".to_string()));
@@ -324,29 +324,6 @@ impl DefaultExecutor {
             Err(ExecError::Custom("Not a command node".to_string()))
         }
     }
-}
-
-fn resolve_command_path(cmd: &str) -> Option<String> {
-    if cmd.contains('/') {
-        let path = Path::new(cmd);
-        if path.exists() && path.is_file() {
-            return Some(cmd.to_string());
-        } else {
-            return None;
-        }
-    }
-
-    // Otherwise, search in PATH
-    if let Ok(paths) = env::var("PATH") {
-        for dir in env::split_paths(&paths) {
-            let full_path = dir.join(cmd);
-            if full_path.exists() && fs::metadata(&full_path).map(|m| m.is_file()).unwrap_or(false) {
-                return Some(full_path.to_string_lossy().to_string());
-            }
-        }
-    }
-
-    None
 }
 
 fn flatten_pipeline<'a>(node: &'a AstNode, result: &mut Vec<&'a AstNode>) {

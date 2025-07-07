@@ -1,5 +1,5 @@
 use std::{io, fmt};
-use crate::ast::{AstNode, CommandNode};
+use crate::ast::{AstNode};
 use crate::environment::Environment;
 
 pub type ExecStatus = Result<i32, ExecError>;

@@ -1,5 +1,6 @@
 mod executor;
 mod default_executor;
+mod dev_executor;
 mod builtins;
 mod path_resolver;
 mod redirect;

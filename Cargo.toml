@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 nix = "0.28"
+libc = "0.2"

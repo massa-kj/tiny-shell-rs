@@ -14,6 +14,7 @@ pub enum ExecError {
     RedirectError(String),
     SubshellError(String),
     NoSuchBuiltin(String),
+    NotImplemented(String),
     Custom(String),
 }
 impl fmt::Display for ExecError {
@@ -27,6 +28,7 @@ impl fmt::Display for ExecError {
             ExecError::RedirectError(msg) => write!(f, "Redirect error: {}", msg),
             ExecError::SubshellError(msg) => write!(f, "Subshell error: {}", msg),
             ExecError::NoSuchBuiltin(name) => write!(f, "No such builtin command: {}", name),
+            ExecError::NotImplemented(feature) => write!(f, "Feature not implemented: {}", feature),
             ExecError::Custom(msg) => write!(f, "Execution error: {}", msg),
         }
     }

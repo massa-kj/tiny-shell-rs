@@ -1,9 +1,8 @@
 use std::fs::{File, OpenOptions};
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{AsRawFd};
 use std::io;
 use crate::ast::{AstNode, RedirectKind};
 use crate::executor::{ExecStatus, ExecError, Executor};
-use std::process::{Command, Stdio};
 
 pub struct RedirectHandler;
 
@@ -28,16 +27,17 @@ impl RedirectHandler {
         use RedirectKind::*;
         let result = match kind {
             In => {
-                match File::open(file) {
+                let f = File::open(file);
+                match f {
                     Ok(f) => {
                         let fd = f.as_raw_fd();
-                        // Redirect to standard input (0)
                         let saved = unsafe { libc::dup(0) };
                         if unsafe { libc::dup2(fd, 0) } == -1 {
                             return Err(ExecError::Io(io::Error::last_os_error()));
                         }
+                        // Explicitly forget the File so the fd is not closed
+                        std::mem::forget(f);
                         let res = executor.exec(node, env);
-                        // Restore
                         unsafe { libc::dup2(saved, 0); libc::close(saved); }
                         res
                     }
@@ -45,13 +45,15 @@ impl RedirectHandler {
                 }
             }
             Out => {
-                match File::create(file) {
+                let f = File::create(file);
+                match f {
                     Ok(f) => {
                         let fd = f.as_raw_fd();
                         let saved = unsafe { libc::dup(1) };
                         if unsafe { libc::dup2(fd, 1) } == -1 {
                             return Err(ExecError::Io(io::Error::last_os_error()));
                         }
+                        std::mem::forget(f);
                         let res = executor.exec(node, env);
                         unsafe { libc::dup2(saved, 1); libc::close(saved); }
                         res
@@ -60,13 +62,15 @@ impl RedirectHandler {
                 }
             }
             Append => {
-                match OpenOptions::new().write(true).append(true).create(true).open(file) {
+                let f = OpenOptions::new().write(true).append(true).create(true).open(file);
+                match f {
                     Ok(f) => {
                         let fd = f.as_raw_fd();
                         let saved = unsafe { libc::dup(1) };
                         if unsafe { libc::dup2(fd, 1) } == -1 {
                             return Err(ExecError::Io(io::Error::last_os_error()));
                         }
+                        std::mem::forget(f);
                         let res = executor.exec(node, env);
                         unsafe { libc::dup2(saved, 1); libc::close(saved); }
                         res
@@ -113,15 +117,15 @@ impl RedirectHandler {
         } else {
             // --- Parent process: right-side command (input from pipe) ---
             unsafe {
-                libc::close(write_fd); // The write end is not needed
-                libc::dup2(read_fd, 0); // Redirect stdin to the read end of the pipe
+                libc::close(write_fd);
+                let saved = libc::dup(0);
+                libc::dup2(read_fd, 0);
                 libc::close(read_fd);
+                let status = executor.exec(right, env);
+                libc::dup2(saved, 0);
+                libc::close(saved);
+                status
             }
-            let status = executor.exec(right, env);
-            // Wait for the child process to finish
-            let mut stat_loc = 0;
-            unsafe { libc::waitpid(pid, &mut stat_loc, 0); }
-            status
         }
     }
 }
@@ -139,7 +143,7 @@ mod tests {
     fn test_redirect_out_creates_file() {
         // 1. Test output file name
         let file_name = "test_redirect_out.txt";
-        let _ = remove_file(file_name); // 前回残ってたら消す
+        let _ = remove_file(file_name); // Delete if it was left over from last time
 
         // 2. Prepare the command node (for mock Executor)
         let cmd = CommandNode {

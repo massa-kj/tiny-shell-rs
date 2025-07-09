@@ -4,7 +4,7 @@ fn main() {
     use tiny_shell_rs::expander;
     use tiny_shell_rs::environment::Environment;
     use tiny_shell_rs::prompt::ShellPrompt;
-    use tiny_shell_rs::executor::{Executor, DefaultExecutor};
+    use tiny_shell_rs::executor::{Executor, DefaultExecutor, DevExecutor};
     let mut env = Environment::new();
     let prompt = ShellPrompt::new();
 
@@ -41,10 +41,16 @@ fn main() {
             }
         };
 
-        let mut executor = DefaultExecutor;
+        let mut executor = DevExecutor{
+            builtin_registry: tiny_shell_rs::executor::BuiltinManager::new(),
+            path_resolver: tiny_shell_rs::executor::PathResolver,
+        };
         match executor.exec(&expanded, &mut env) {
             Ok(_) => continue,
-            Err(e) => eprintln!("execution error: {}", e),
+            Err(e) => {
+                eprintln!("execution error: {}", e);
+                continue;
+            }
         }
     }
 }

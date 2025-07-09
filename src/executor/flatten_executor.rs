@@ -10,16 +10,16 @@ use crate::executor::{
     // signal::SignalHandler,
 };
 
-pub struct DevExecutor {
+pub struct FlattenExecutor {
     pub builtin_registry: BuiltinManager,
     pub path_resolver: PathResolver,
     // pub redirect_handler: RedirectHandler,
     // pub signal_handler: SignalHandler,
 }
 
-impl DevExecutor {
+impl FlattenExecutor {
     pub fn new() -> Self {
-        DevExecutor {
+        FlattenExecutor {
             builtin_registry: BuiltinManager::new(),
             path_resolver: PathResolver,
             // redirect_handler: RedirectHandler::new(),
@@ -80,7 +80,7 @@ impl DevExecutor {
     }
 }
 
-impl Executor for DevExecutor {
+impl Executor for FlattenExecutor {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => {

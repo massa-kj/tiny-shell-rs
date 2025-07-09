@@ -8,11 +8,11 @@ use super::executor::ExecError;
 use super::builtins::BuiltinManager;
 use super::path_resolver::PathResolver;
 
-pub struct DefaultExecutor;
+pub struct RecursiveExecutor;
 // pub struct DryRunExecutor;
 // pub struct LoggingExecutor;
 
-impl Executor for DefaultExecutor {
+impl Executor for RecursiveExecutor {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => self.exec_command(cmd, env),
@@ -37,12 +37,12 @@ impl Executor for DefaultExecutor {
                     Ok(0)
                 }
             }
-            AstNode::Compound(_) => unimplemented!(), // 今後拡張
+            AstNode::Compound(_) => unimplemented!(),
         }
     }
 }
 
-impl DefaultExecutor {
+impl RecursiveExecutor {
     fn exec_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
         // Built-in command execution
         let builtin_manager = BuiltinManager::new();
@@ -63,16 +63,14 @@ impl DefaultExecutor {
         let mut command = Command::new(path);
         command.args(&cmd.args);
 
-        // 環境変数
         // for (k, v) in &cmd.assignments {
         //     command.env(k, v);
         // }
-        // shell全体の環境変数
         // for (k, v) in &env.vars {
         //     command.env(k, v);
         // }
 
-        // 標準入出力リダイレクト、背景プロセス等がある場合はここでStdio制御
+        // If there is standard input/output redirection, background processes, etc., control Stdio here
         // command.stdin(Stdio::inherit()).stdout(...) など
 
         let status = command
@@ -92,12 +90,12 @@ impl DefaultExecutor {
         use std::fs::File;
         use std::process::Stdio;
 
-        // 1. 全リダイレクトをVecでフラットに集める
+        // 1. Collect all redirects into a flat Vec
         let mut redirects = vec![RedirectInfo { kind, file }];
         let (cmd_node, mut more_redirects) = flatten_redirects(node, Vec::new());
         redirects.append(&mut more_redirects);
 
-        // 2. ファイルハンドルを種別ごとにセット
+        // 2. Set file handles by type
         let mut stdin_file = None;
         let mut stdout_file = None;
         let mut stderr_file = None;
@@ -131,7 +129,7 @@ impl DefaultExecutor {
         use std::process::{Command, Stdio};
         use std::os::unix::io::FromRawFd;
 
-        // 1. 全コマンドノードをVecでフラットに集める
+        // 1. Collect all command nodes into a flat Vec
         let mut cmds = Vec::new();
         flatten_pipeline(node, &mut cmds);
 
@@ -142,11 +140,11 @@ impl DefaultExecutor {
 
         for (i, &cmd_node) in cmds.iter().enumerate() {
             let mut command = self.prepare_command(cmd_node, env)?;
-            // 最初以外はstdinをパイプでつなぐ
+            // Except for the first command, connect stdin via a pipe
             if let Some(stdin) = prev_stdout.take() {
                 command.stdin(stdin);
             }
-            // 最後以外はstdoutをパイプでつなぐ
+            // Except for the last command, connect stdout via a pipe
             if i != n - 1 {
                 let (pipe_read, pipe_write) = nix::unistd::pipe()
                     .map_err(|e| ExecError::Io(std::io::Error::from_raw_os_error(e as i32)))?;
@@ -161,7 +159,7 @@ impl DefaultExecutor {
             children.push(child);
         }
 
-        // すべての子プロセスをwait（実用ではエラー処理やパイプのクローズも忘れずに）
+        // Wait for all child processes (in practice, don't forget error handling and closing pipes)
         let mut status = 0;
         for mut child in children {
             status = child.wait().map_err(ExecError::Io)?.code().unwrap_or(1);
@@ -206,7 +204,7 @@ impl DefaultExecutor {
                 //     command.env(k, v);
                 // }
 
-                // 標準入出力の差し替え
+                // Substitute standard input/output
                 if let Some(f) = stdin {
                     command.stdin(Stdio::from(f));
                 } else {
@@ -227,7 +225,6 @@ impl DefaultExecutor {
                 Ok(status.code().unwrap_or(1))
             }
             AstNode::Pipeline(_, _) => {
-                // パイプラインはexec_pipelineで処理
                 self.exec_pipeline_with_redirect(node, env, stdout, stdin, stderr)
             }
             _ => self.exec(node, env)
@@ -255,7 +252,7 @@ impl DefaultExecutor {
         for (i, &cmd_node) in cmds.iter().enumerate() {
             let mut command = self.prepare_command(cmd_node, env)?;
 
-            // 入力リダイレクトはパイプラインの最初だけ
+            // Input redirection is only for the first in the pipeline
             if i == 0 {
                 if let Some(ref f) = stdin {
                     command.stdin(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
@@ -264,7 +261,7 @@ impl DefaultExecutor {
                 command.stdin(stdin);
             }
 
-            // 出力リダイレクトはパイプラインの最後だけ
+            // Output redirection is only for the last in the pipeline
             if i == n - 1 {
                 if let Some(ref f) = stdout {
                     command.stdout(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
@@ -277,7 +274,7 @@ impl DefaultExecutor {
                 prev_stdout = Some(Stdio::from(pipe_read));
             }
 
-            // エラーストリーム（必要なら最後のコマンドだけでOK）
+            // Error stream (only needed for the last command if necessary)
             if i == n - 1 {
                 if let Some(ref f) = stderr {
                     command.stderr(Stdio::from(f.try_clone().map_err(ExecError::Io)?));
@@ -300,7 +297,6 @@ impl DefaultExecutor {
         node: &AstNode,
         env: &mut Environment,
     ) -> Result<Command, ExecError> {
-        // AstNode::CommandからCommand構築
         if let AstNode::Command(cmd) = node {
             let resolver = PathResolver;
             let path = match resolver.resolve(&cmd.name) {

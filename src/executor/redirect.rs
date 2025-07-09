@@ -132,7 +132,6 @@ impl RedirectHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs::{File, read_to_string, remove_file};
     use std::io::Write;
     use crate::ast::{AstNode, CommandNode, CommandKind, RedirectKind};

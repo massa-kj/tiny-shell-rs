@@ -41,7 +41,7 @@ fn main() {
             }
         };
 
-        let mut executor = FlattenExecutor{
+        let mut executor = RecursiveExecutor{
             builtin_registry: tiny_shell_rs::executor::BuiltinManager::new(),
             path_resolver: tiny_shell_rs::executor::PathResolver,
         };

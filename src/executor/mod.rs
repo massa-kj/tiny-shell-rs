@@ -8,7 +8,7 @@ mod tests;
 
 pub use executor::{Executor, ExecError, ExecStatus};
 pub use recursive_executor::RecursiveExecutor;
+pub use flatten_executor::FlattenExecutor;
 pub use path_resolver::PathResolver;
 pub use builtins::BuiltinManager;
-pub use flatten_executor::FlattenExecutor;
 

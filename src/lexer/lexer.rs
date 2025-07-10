@@ -16,10 +16,38 @@ impl fmt::Display for LexError {
     }
 }
 
-pub struct Lexer;
+pub struct Lexer<'a> {
+    input: &'a str,
+    chars: std::str::Chars<'a>,
+    pos: usize,
+}
 
-impl Lexer {
-    pub fn tokenize(line: &str) -> Result<Vec<Token>, LexError> {
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Self {
+        Lexer {
+            input,
+            chars: input.chars(),
+            pos: 0,
+        }
+    }
+
+    pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
+        let mut lexer = Lexer::new(input);
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next_token()? {
+            tokens.push(token);
+            if tokens.last().map_or(false, |t| t.kind == TokenKind::Eof) {
+                break;
+            }
+        }
+        Ok(tokens)
+    }
+
+    pub fn next_token(&mut self) -> Result<Option<Token>, LexError> {
+        Ok(None)
+    }
+
+    pub fn tokenize_all(line: &str) -> Result<Vec<Token>, LexError> {
         let mut tokens = Vec::new();
         let chars: Vec<char> = line.chars().collect();
         let mut pos = 0;
@@ -222,12 +250,105 @@ impl Lexer {
     }
 }
 
-#[test]
-fn test_tokenize_basic() {
-    let tokens = Lexer::tokenize("echo hello | grep world").unwrap();
-    assert_eq!(tokens[0].kind, TokenKind::Word);
-    assert_eq!(tokens[0].lexeme, "echo");
-    assert_eq!(tokens[2].kind, TokenKind::Pipe);
-    assert_eq!(tokens[2].lexeme, "|");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::{Token, TokenKind};
+
+    fn token(kind: TokenKind, lexeme: &str, span: (usize, usize)) -> Token {
+        Token {
+            kind,
+            lexeme: lexeme.to_string(),
+            span,
+        }
+    }
+
+    #[test]
+    fn test_tokenize_simple_words() {
+        let input = "echo hello";
+        let tokens = Lexer::tokenize_all(input).unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "echo", (0, 4)),
+                token(TokenKind::Word, "hello", (5, 10)),
+                token(TokenKind::Eof, "", (10, 10)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_operators() {
+        let input = "a|b && c || d > e < f ; (g) ";
+        let tokens = Lexer::tokenize_all(input).unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "a", (0, 1)),
+                token(TokenKind::Pipe, "|", (1, 2)),
+                token(TokenKind::Word, "b", (2, 3)),
+                token(TokenKind::And, "&&", (4, 6)),
+                token(TokenKind::Word, "c", (7, 8)),
+                token(TokenKind::Or, "||", (9, 11)),
+                token(TokenKind::Word, "d", (12, 13)),
+                token(TokenKind::RedirectOut, ">", (14, 15)),
+                token(TokenKind::Word, "e", (16, 17)),
+                token(TokenKind::RedirectIn, "<", (18, 19)),
+                token(TokenKind::Word, "f", (20, 21)),
+                token(TokenKind::Semicolon, ";", (22, 23)),
+                token(TokenKind::LParen, "(", (24, 25)),
+                token(TokenKind::Word, "g", (25, 26)),
+                token(TokenKind::RParen, ")", (26, 27)),
+                token(TokenKind::Eof, "", (28, 28)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_quotes() {
+        let input = r#"echo "hello world" 'foo bar'"#;
+        let tokens = Lexer::tokenize_all(input).unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "echo", (0, 4)),
+                token(TokenKind::DoubleQuote, "hello world", (5, 18)),
+                token(TokenKind::SingleQuote, "foo bar", (19, 29)),
+                token(TokenKind::Eof, "", (29, 29)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_mixed() {
+        let input = r#"ls -l | grep "foo bar" && echo done"#;
+        let tokens = Lexer::tokenize_all(input).unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "ls", (0, 2)),
+                token(TokenKind::Word, "-l", (3, 5)),
+                token(TokenKind::Pipe, "|", (6, 7)),
+                token(TokenKind::Word, "grep", (8, 12)),
+                token(TokenKind::DoubleQuote, "foo bar", (13, 23)),
+                token(TokenKind::And, "&&", (24, 26)),
+                token(TokenKind::Word, "echo", (27, 31)),
+                token(TokenKind::Word, "done", (32, 36)),
+                token(TokenKind::Eof, "", (36, 36)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_empty() {
+        let input = "";
+        let tokens = Lexer::tokenize_all(input).unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Eof, "", (0, 0)),
+            ]
+        );
+    }
 }
 

@@ -17,7 +17,7 @@ fn main() {
 
         let tokens = match &line {
             Some(l) if l.trim().is_empty() => continue,
-            Some(l) => Lexer::tokenize(l),
+            Some(l) => Lexer::tokenize_all(l),
             None => {
                 // End with EOF (e.g. Ctrl+D)
                 break;

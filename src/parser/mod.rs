@@ -46,7 +46,7 @@ mod tests {
     use crate::lexer::Lexer;
 
     fn lex_and_parse(src: &str) -> AstNode {
-        let tokens = Lexer::tokenize(src);
+        let tokens = Lexer::tokenize_all(src);
         let mut parser = match tokens {
             Ok(ref toks) => DefaultParser::new(toks),
             Err(ref e) => {
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_parse_error() {
-        let tokens = Lexer::tokenize("&& ls");
+        let tokens = Lexer::tokenize_all("&& ls");
         let mut parser = match tokens {
             Ok(ref toks) => DefaultParser::new(toks),
             Err(ref e) => {

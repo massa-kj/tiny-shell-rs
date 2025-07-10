@@ -1,6 +1,6 @@
 use crate::parser::{Parser, ParseError};
 use crate::ast::{AstNode, CommandNode};
-use crate::lexer::token::{Token, TokenKind};
+use crate::lexer::{Token, TokenKind};
 
 pub struct DefaultParser<'a> {
     tokens: &'a [Token],

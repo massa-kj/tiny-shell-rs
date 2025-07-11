@@ -19,8 +19,6 @@ pub enum TokenKind {
     RBrace,            // }
     Dollar,            // $
     DollarBrace,       // ${ (variable expansion)
-    SingleQuote,       // '
-    DoubleQuote,       // "
     Backtick,          // `
     SubstitutionStart, // $(
     SubstitutionEnd,   // )

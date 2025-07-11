@@ -26,6 +26,7 @@ pub enum TokenKind {
     SubstitutionEnd,   // )
     If, Then, Else, Fi, For, While, Do, Done, // Keywords
     Eof,
+    NotImplemented,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

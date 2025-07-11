@@ -17,7 +17,10 @@ fn main() {
 
         let tokens = match &line {
             Some(l) if l.trim().is_empty() => continue,
-            Some(l) => Lexer::tokenize_all(l),
+            Some(l) => {
+                let mut lexer = Lexer::new(l);
+                lexer.tokenize_all()
+            }
             None => {
                 // End with EOF (e.g. Ctrl+D)
                 break;

@@ -4,14 +4,14 @@ use super::token::{Token, TokenKind};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LexError {
     UnexpectedChar(char, usize),
-    UnterminatedQuote(char),
+    UnterminatedQuote(char, usize),
 }
 
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LexError::UnexpectedChar(c, pos) => write!(f, "Unexpected character '{}' at position {}", c, pos),
-            LexError::UnterminatedQuote(q) => write!(f, "Unterminated quote '{}'", q),
+            LexError::UnterminatedQuote(c, q) => write!(f, "Unterminated quote '{}' starting at position {}", c, q),
         }
     }
 }
@@ -31,10 +31,9 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
-        let mut lexer = Lexer::new(input);
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, LexError> {
         let mut tokens = Vec::new();
-        while let Some(token) = lexer.next_token()? {
+        while let Some(token) = self.next_token()? {
             tokens.push(token);
             if tokens.last().map_or(false, |t| t.kind == TokenKind::Eof) {
                 break;
@@ -44,208 +43,257 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Result<Option<Token>, LexError> {
-        Ok(None)
-    }
-
-    pub fn tokenize_all(line: &str) -> Result<Vec<Token>, LexError> {
-        let mut tokens = Vec::new();
-        let chars: Vec<char> = line.chars().collect();
-        let mut pos = 0;
+        let chars: Vec<char> = self.input.chars().collect();
         let mut buf = String::new();
-        let mut token_start = 0;
+        let mut token_start = self.pos;
 
-        while pos < chars.len() {
-            let ch = chars[pos];
+        while self.pos < chars.len() {
+            let ch = chars[self.pos];
+
             match ch {
                 ' ' | '\t' | '\n' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        self.pos += 1;
+                        return Ok(Some(token));
                     }
-                    pos += 1;
+                    self.pos += 1;
                 }
                 '|' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        // Do not consume '|' (process it in the next loop)
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    if pos < chars.len() && chars[pos] == '|' {
-                        pos += 1;
-                        tokens.push(Token {
+                    if self.pos + 1 < chars.len() && chars[self.pos + 1] == '|' {
+                        let token = Token {
                             kind: TokenKind::Or,
                             lexeme: "||".to_string(),
-                            span: (start, pos),
-                        });
+                            span: (self.pos, self.pos + 2),
+                        };
+                        self.pos += 2;
+                        return Ok(Some(token));
                     } else {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Pipe,
                             lexeme: "|".to_string(),
-                            span: (start, pos),
-                        });
+                            span: (self.pos, self.pos + 1),
+                        };
+                        self.pos += 1;
+                        return Ok(Some(token));
                     }
                 }
                 '&' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        // Do not consume '&' (process it in the next loop)
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    if pos < chars.len() && chars[pos] == '&' {
-                        pos += 1;
-                        tokens.push(Token {
+                    if self.pos + 1 < chars.len() && chars[self.pos + 1] == '&' {
+                        let token = Token {
                             kind: TokenKind::And,
                             lexeme: "&&".to_string(),
-                            span: (start, pos),
-                        });
+                            span: (self.pos, self.pos + 2),
+                        };
+                        self.pos += 2;
+                        return Ok(Some(token));
+                    } else {
+                        let token = Token {
+                            kind: TokenKind::NotImplemented,
+                            lexeme: "&".to_string(),
+                            span: (self.pos, self.pos + 1),
+                        };
+                        self.pos += 1;
+                        return Ok(Some(token));
                     }
                 }
                 '>' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    tokens.push(Token {
+                    let token = Token {
                         kind: TokenKind::RedirectOut,
                         lexeme: ">".to_string(),
-                        span: (start, pos),
-                    });
+                        span: (self.pos, self.pos + 1),
+                    };
+                    self.pos += 1;
+                    return Ok(Some(token));
                 }
                 '<' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    tokens.push(Token {
+                    let token = Token {
                         kind: TokenKind::RedirectIn,
                         lexeme: "<".to_string(),
-                        span: (start, pos),
-                    });
+                        span: (self.pos, self.pos + 1),
+                    };
+                    self.pos += 1;
+                    return Ok(Some(token));
                 }
                 ';' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    tokens.push(Token {
+                    let token = Token {
                         kind: TokenKind::Semicolon,
                         lexeme: ";".to_string(),
-                        span: (start, pos),
-                    });
+                        span: (self.pos, self.pos + 1),
+                    };
+                    self.pos += 1;
+                    return Ok(Some(token));
                 }
                 '(' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    tokens.push(Token {
+                    let token = Token {
                         kind: TokenKind::LParen,
                         lexeme: "(".to_string(),
-                        span: (start, pos),
-                    });
+                        span: (self.pos, self.pos + 1),
+                    };
+                    self.pos += 1;
+                    return Ok(Some(token));
                 }
                 ')' => {
                     if !buf.is_empty() {
-                        tokens.push(Token {
+                        let token = Token {
                             kind: TokenKind::Word,
                             lexeme: buf.clone(),
-                            span: (token_start, pos),
-                        });
+                            span: (token_start, self.pos),
+                        };
                         buf.clear();
+                        return Ok(Some(token));
                     }
-                    let start = pos;
-                    pos += 1;
-                    tokens.push(Token {
+                    let token = Token {
                         kind: TokenKind::RParen,
                         lexeme: ")".to_string(),
-                        span: (start, pos),
-                    });
+                        span: (self.pos, self.pos + 1),
+                    };
+                    self.pos += 1;
+                    return Ok(Some(token));
                 }
-                '"' | '\'' => {
-                    let quote = ch;
-                    let start = pos;
-                    pos += 1;
-                    let mut quoted = String::new();
-                    while pos < chars.len() {
-                        let nc = chars[pos];
-                        if nc == quote {
-                            pos += 1;
-                            break;
-                        } else {
-                            quoted.push(nc);
-                            pos += 1;
+                '\'' => {
+                    self.pos += 1; // Skip the starting quote
+                    let start = self.pos;
+                    while self.pos < chars.len() {
+                        if chars[self.pos] == '\'' {
+                            let quoted = self.input[start..self.pos].to_string();
+                            let span = (start, self.pos);
+                            self.pos += 1; // Consume the closing quote
+                            return Ok(Some(Token {
+                                kind: TokenKind::Word,
+                                lexeme: quoted,
+                                span,
+                            }));
                         }
+                        self.pos += 1;
                     }
-                    // TODO: Added support for cases where quotes are not closed
-                    // TODO: escape char
-                    tokens.push(Token {
-                        kind: if quote == '"' { TokenKind::DoubleQuote } else { TokenKind::SingleQuote },
-                        lexeme: quoted,
-                        span: (start, pos),
-                    });
+                    return Err(LexError::UnterminatedQuote('\'', start - 1));
+                }
+                '"' => {
+                    self.pos += 1; // Skip the starting quote
+                    let start = self.pos;
+                    while self.pos < chars.len() {
+                        if chars[self.pos] == '"' {
+                            let quoted = self.input[start..self.pos].to_string();
+                            let span = (start, self.pos); // only contents
+                            self.pos += 1; // Consume the closing quote
+                            return Ok(Some(Token {
+                                kind: TokenKind::Word,
+                                lexeme: quoted,
+                                span,
+                            }));
+                        }
+                        self.pos += 1;
+                    }
+                    return Err(LexError::UnterminatedQuote('"', start - 1));
                 }
                 _ => {
                     if buf.is_empty() {
-                        token_start = pos;
+                        token_start = self.pos;
                     }
                     buf.push(ch);
-                    pos += 1;
+                    self.pos += 1;
                 }
             }
         }
 
+        // If there is any buffer left after the loop ends, return the last word token
         if !buf.is_empty() {
-            tokens.push(Token {
+            let token = Token {
                 kind: TokenKind::Word,
                 lexeme: buf,
-                span: (token_start, pos),
-            });
+                span: (token_start, self.pos),
+            };
+            return Ok(Some(token));
         }
 
-        tokens.push(Token {
-            kind: TokenKind::Eof,
-            lexeme: "".to_string(),
-            span: (pos, pos),
-        });
+        // If the end is reached, return EOF
+        if self.pos >= chars.len() {
+            return Ok(Some(Token {
+                kind: TokenKind::Eof,
+                lexeme: "".to_string(),
+                span: (self.pos, self.pos),
+            }));
+        }
 
+        Ok(None)
+    }
+
+    pub fn tokenize_all(&mut self) -> Result<Vec<Token>, LexError> {
+        let mut tokens = Vec::new();
+        loop {
+            match self.next_token()? {
+                Some(token) => {
+                    let is_eof = token.kind == TokenKind::Eof;
+                    tokens.push(token);
+                    if is_eof {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
         Ok(tokens)
     }
 }
@@ -266,7 +314,8 @@ mod tests {
     #[test]
     fn test_tokenize_simple_words() {
         let input = "echo hello";
-        let tokens = Lexer::tokenize_all(input).unwrap();
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
         assert_eq!(
             tokens,
             vec![
@@ -280,7 +329,8 @@ mod tests {
     #[test]
     fn test_tokenize_operators() {
         let input = "a|b && c || d > e < f ; (g) ";
-        let tokens = Lexer::tokenize_all(input).unwrap();
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
         assert_eq!(
             tokens,
             vec![
@@ -304,25 +354,84 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_tokenize_quotes() {
-        let input = r#"echo "hello world" 'foo bar'"#;
-        let tokens = Lexer::tokenize_all(input).unwrap();
+        #[test]
+    fn test_single_quoted_word() {
+        let input = "ls 'foo bar'";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
         assert_eq!(
             tokens,
             vec![
-                token(TokenKind::Word, "echo", (0, 4)),
-                token(TokenKind::DoubleQuote, "hello world", (5, 18)),
-                token(TokenKind::SingleQuote, "foo bar", (19, 29)),
-                token(TokenKind::Eof, "", (29, 29)),
+                token(TokenKind::Word, "ls", (0, 2)),
+                token(TokenKind::Word, "foo bar", (4, 11)),
+                token(TokenKind::Eof, "", (12, 12)),
             ]
         );
     }
 
     #[test]
+    fn test_double_quoted_word() {
+        let input = "ls \"foo bar\"";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "ls", (0, 2)),
+                token(TokenKind::Word, "foo bar", (4, 11)),
+                token(TokenKind::Eof, "", (12, 12)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_mixed_quotes() {
+        let input = "echo 'foo' \"bar baz\" qux";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                token(TokenKind::Word, "echo", (0, 4)),
+                token(TokenKind::Word, "foo", (6, 9)),
+                token(TokenKind::Word, "bar baz", (12, 19)),
+                token(TokenKind::Word, "qux", (21, 24)),
+                token(TokenKind::Eof, "", (24, 24)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_unterminated_single_quote() {
+        let input = "echo 'foo";
+        let mut lexer = Lexer::new(input);
+        let result = lexer.tokenize_all();
+        assert!(result.is_err());
+        if let Err(LexError::UnterminatedQuote('\'', pos)) = result {
+            assert_eq!(pos, 5); // ' の位置
+        } else {
+            panic!("Should be UnterminatedQuote error");
+        }
+    }
+
+    #[test]
+    fn test_unterminated_double_quote() {
+        let input = "echo \"foo";
+        let mut lexer = Lexer::new(input);
+        let result = lexer.tokenize_all();
+        assert!(result.is_err());
+        if let Err(LexError::UnterminatedQuote('"', pos)) = result {
+            assert_eq!(pos, 5); // " の位置
+        } else {
+            panic!("Should be UnterminatedQuote error");
+        }
+    }
+
+    #[test]
     fn test_tokenize_mixed() {
-        let input = r#"ls -l | grep "foo bar" && echo done"#;
-        let tokens = Lexer::tokenize_all(input).unwrap();
+        let input = r#"ls -l | grep 'foo bar' && echo done"#;
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
         assert_eq!(
             tokens,
             vec![
@@ -330,11 +439,11 @@ mod tests {
                 token(TokenKind::Word, "-l", (3, 5)),
                 token(TokenKind::Pipe, "|", (6, 7)),
                 token(TokenKind::Word, "grep", (8, 12)),
-                token(TokenKind::DoubleQuote, "foo bar", (13, 23)),
-                token(TokenKind::And, "&&", (24, 26)),
-                token(TokenKind::Word, "echo", (27, 31)),
-                token(TokenKind::Word, "done", (32, 36)),
-                token(TokenKind::Eof, "", (36, 36)),
+                token(TokenKind::Word, "foo bar", (14, 21)),
+                token(TokenKind::And, "&&", (23, 25)),
+                token(TokenKind::Word, "echo", (26, 30)),
+                token(TokenKind::Word, "done", (31, 35)),
+                token(TokenKind::Eof, "", (35, 35)),
             ]
         );
     }
@@ -342,7 +451,8 @@ mod tests {
     #[test]
     fn test_tokenize_empty() {
         let input = "";
-        let tokens = Lexer::tokenize_all(input).unwrap();
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize_all().unwrap();
         assert_eq!(
             tokens,
             vec![

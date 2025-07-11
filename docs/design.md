@@ -3,7 +3,7 @@
 ## Purpose / Policy
 
 - For study purpose
-- Scalability, Consistency, Testability
+- Scalability, Testability, Consistency
 
 ## Architecture Overview
 
@@ -107,14 +107,14 @@ graph TD
 src/                               //
 ├── main.rs                        // Entry point
 ├── lib.rs                         // Core logic (module management)
-├── repl.rs                        // REPL loop: input handling/output control
 ├── lexer/                         //
 │   ├── mod.rs                     //
+│   ├── token.rs                   // Token definitions
 │   └── lexer.rs                   // Lexical analysis
 ├── parser/                        //
 │   ├── mod.rs                     //
-│   ├── parser.rs                  // Parser main
-│   └── ast.rs                     // Abstract Syntax Tree (AST) definitions
+│   ├── ast.rs                     // Abstract Syntax Tree (AST) definitions
+│   └── parser.rs                  // Parser main
 ├── executor/                      //
 │   ├── mod.rs                     // Command execution engine
 │   ├── command.rs                 // External command launching
@@ -133,6 +133,7 @@ src/                               //
 ├── io/                            //
 │   ├── input.rs                   // Standard input wrapper
 │   └── output.rs                  // Standard output/error wrapper
+├── repl.rs                        // REPL loop: input handling/output control
 ├── env.rs                         // Environment variable management
 ├── history.rs                     // History/completion
 ├── config.rs                      // Config file loader
@@ -147,15 +148,20 @@ src/                               //
 ### lexer
 
 ```rust
-pub struct Lexer;
 pub enum TokenKind;
+
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
-    pub span: (usize, usize),
+    pub span: (usize, usize), // For the UTF-8, Span type will be introduced in the future
 }
+
+pub struct Lexer {
+  pub fn tokenize(input: &str) -> Result<Token, LexError>;
+  pub fn tokenize_all(input: &str) -> Result<Vec<Token>, LexError>;
+}
+
 pub enum LexError;
-pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError>;
 ```
 
 ### ast

@@ -113,8 +113,8 @@ src/                               //
 │   └── lexer.rs                   // Lexical analysis
 ├── parser/                        //
 │   ├── mod.rs                     //
-│   ├── ast.rs                     // Abstract Syntax Tree (AST) definitions
-│   └── parser.rs                  // Parser main
+│   ├── parser.rs                  // Parser main
+│   └── default_parser.rs          // Default Parser
 ├── executor/                      //
 │   ├── mod.rs                     // Command execution engine
 │   ├── command.rs                 // External command launching
@@ -134,6 +134,7 @@ src/                               //
 │   ├── input.rs                   // Standard input wrapper
 │   └── output.rs                  // Standard output/error wrapper
 ├── repl.rs                        // REPL loop: input handling/output control
+├── ast.rs                         // Abstract Syntax Tree (AST) definitions
 ├── env.rs                         // Environment variable management
 ├── history.rs                     // History/completion
 ├── config.rs                      // Config file loader
@@ -169,33 +170,111 @@ pub enum LexError;
 ```rust
 pub enum AstNode {
     Command(CommandNode),
-    Pipeline(Box<AstNode>, Box<AstNode>),
+    Subshell(Box<AstNode>),
     Redirect {
         node: Box<AstNode>,
         kind: RedirectKind,
         file: String,
     },
-    Sequence(Box<AstNode>, Box<AstNode>),
+    Pipeline(Box<AstNode>, Box<AstNode>),
     And(Box<AstNode>, Box<AstNode>),
     Or(Box<AstNode>, Box<AstNode>),
-    Subshell(Box<AstNode>),
+    Sequence(Box<AstNode>, Box<AstNode>),
     // Compound, If, For, ...
 }
+
 pub struct CommandNode {
     pub name: String,
     pub args: Vec<String>,
     pub kind: CommandKind,
 }
-pub enum CommandKind {
-    Simple,
-    Builtin,
-    External,
-}
-pub enum RedirectKind {
-    In,
-    Out,
-    Append,
-}
+
+pub enum CommandKind { Simple, Builtin, External }
+
+pub enum RedirectKind { In, Out, Append }
+
+pub enum CompoundNode { }
+```
+
+#### Priority of AST nodes (higher is closer to the leaf)
+
+Sequence < And/Or < Pipeline < Redirect < Subshell < Command
+
+#### AST node example
+
+```rust
+// Example 1: `ls -l > ls.txt; cat < ls.txt | grep "txt" | wc > output.txt`
+let ast = AstNode::Sequence(
+    Box::new(AstNode::Redirect {
+        node: Box::new(AstNode::Command(CommandNode {
+            name: "ls".to_string(),
+            args: vec!["-l".to_string()],
+            kind: CommandKind::External,
+        })),
+        kind: RedirectKind::Out,
+        file: "ls.txt".to_string(),
+    }),
+    Box::new(AstNode::Pipeline(
+        Box::new(AstNode::Redirect {
+            node: Box::new(AstNode::Command(CommandNode {
+                name: "cat".to_string(),
+                args: vec!["ls.txt".to_string()],
+                kind: CommandKind::External,
+            })),
+            kind: RedirectKind::In,
+            file: "".to_string(), // Input redirection does not require a file
+        }),
+        Box::new(AstNode::Pipeline(
+            Box::new(AstNode::Command(CommandNode {
+                name: "grep".to_string(),
+                args: vec!["txt".to_string()],
+                kind: CommandKind::External,
+            })),
+            Box::new(AstNode::Redirect {
+                node: Box::new(AstNode::Command(CommandNode {
+                    name: "wc".to_string(),
+                    args: vec![],
+                    kind: CommandKind::External,
+                })),
+                kind: RedirectKind::Out,
+                file: "output.txt".to_string(),
+            }),
+        )),
+    )),
+);
+// Example 2: `(cd /tmp && ls) || echo "Failed"`
+let ast = AstNode::Or(
+    Box::new(AstNode::Subshell(Box::new(AstNode::Sequence(
+        Box::new(AstNode::Command(CommandNode {
+            name: "cd".to_string(),
+            args: vec!["/tmp".to_string()],
+            kind: CommandKind::External,
+        })),
+        Box::new(AstNode::Command(CommandNode {
+            name: "ls".to_string(),
+            args: vec![],
+            kind: CommandKind::External,
+        })),
+    )))),
+    Box::new(AstNode::Command(CommandNode {
+        name: "echo".to_string(),
+        args: vec!["Failed".to_string()],
+        kind: CommandKind::Builtin,
+    })),
+);
+// Example 3: `if [ -f file.txt ]; then echo "File exists"; fi`
+let ast = AstNode::If(
+    Box::new(AstNode::Command(CommandNode {
+        name: "test".to_string(),
+        args: vec!("-f".to_string(), "file.txt".to_string()),
+        kind: CommandKind::Builtin,
+    })),
+    Box::new(AstNode::Command(CommandNode {
+        name: "echo".to_string(),
+        args: vec!["File exists".to_string()],
+        kind: CommandKind::Builtin,
+    })),
+);
 ```
 
 ### parser
@@ -204,10 +283,12 @@ pub enum RedirectKind {
 pub trait Parser {
     fn parse(&mut self) -> Result<AstNode, ParseError>;
 }
+
 pub struct DefaultParser<'a> {
     tokens: &'a [Token],
     pos: usize,
 }
+
 pub enum ParseError;
 ```
 

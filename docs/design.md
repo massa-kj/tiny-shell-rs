@@ -196,6 +196,21 @@ pub enum RedirectKind { In, Out, Append }
 pub enum CompoundNode { }
 ```
 
+### parser
+
+```rust
+pub trait Parser {
+    fn parse(&mut self) -> Result<AstNode, ParseError>;
+}
+
+pub struct DefaultParser<'a> {
+    tokens: &'a [Token],
+    pos: usize,
+}
+
+pub enum ParseError;
+```
+
 #### Priority of AST nodes (higher is closer to the leaf)
 
 Sequence < And/Or < Pipeline < Redirect < Subshell < Command
@@ -275,21 +290,6 @@ let ast = AstNode::If(
         kind: CommandKind::Builtin,
     })),
 );
-```
-
-### parser
-
-```rust
-pub trait Parser {
-    fn parse(&mut self) -> Result<AstNode, ParseError>;
-}
-
-pub struct DefaultParser<'a> {
-    tokens: &'a [Token],
-    pos: usize,
-}
-
-pub enum ParseError;
 ```
 
 ### executor

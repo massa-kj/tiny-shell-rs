@@ -103,16 +103,16 @@ impl FlattenExecutor {
             match r.kind {
                 RedirectKind::In => stdin_file = Some(File::open(r.file).map_err(ExecError::Io)?),
                 RedirectKind::Out => stdout_file = Some(File::create(r.file).map_err(ExecError::Io)?),
-                // RedirectKind::Append => {
-                //     stdout_file = Some(
-                //         std::fs::OpenOptions::new()
-                //             .write(true)
-                //             .append(true)
-                //             .create(true)
-                //             .open(r.file)
-                //             .map_err(ExecError::Io)?
-                //     );
-                // }
+                RedirectKind::Append => {
+                    stdout_file = Some(
+                        std::fs::OpenOptions::new()
+                            .write(true)
+                            .append(true)
+                            .create(true)
+                            .open(r.file)
+                            .map_err(ExecError::Io)?
+                    );
+                }
                 // RedirectKind::Err => stderr_file = Some(File::create(r.file).map_err(ExecError::Io)?),
             }
         }

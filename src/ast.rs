@@ -35,7 +35,7 @@ pub enum CommandKind {
 pub enum RedirectKind {
     In,
     Out,
-    // Append,
+    Append,
 }
 
 #[derive(Debug, Clone, PartialEq)]

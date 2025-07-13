@@ -1,12 +1,11 @@
 use std::fs::File;
 use std::process::{Command, Stdio};
 use nix;
+use super::super::executor::{ Executor, ExecStatus, ExecError };
+use super::super::builtins::BuiltinManager;
+use super::super::path_resolver::PathResolver;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
-use crate::executor::{ Executor, ExecStatus };
-use super::executor::ExecError;
-use super::builtins::BuiltinManager;
-use super::path_resolver::PathResolver;
 
 pub struct FlattenExecutor;
 // pub struct DryRunExecutor;

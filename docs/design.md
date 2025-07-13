@@ -120,11 +120,10 @@ src/                               //
 │   ├── command.rs                 // External command launching
 │   ├── builtin.rs                 // Built-in commands
 │   ├── path_resolver.rs           // Path resolution
-│   ├── redirect.rs                // Redirection/pipe processing
 │   ├── signal.rs                  // Signal handler
 │   ├── recursive_executor/        //
 │   │   ├── mod.rs                 //
-│   │   ├── redirect.rs            //
+│   │   ├── redirect.rs            // Redirection/pipe processing
 │   │   └── recursive_executor.rs  //
 │   └── flatten_executor/          //
 │       ├── mod.rs                 //

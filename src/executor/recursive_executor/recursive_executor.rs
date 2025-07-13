@@ -1,4 +1,5 @@
 use std::process::Command;
+use super::redirect::RedirectHandler;
 use crate::ast::{AstNode, CommandNode, CommandKind};
 use crate::environment::Environment;
 use crate::executor::{
@@ -6,7 +7,6 @@ use crate::executor::{
     ExecStatus, ExecError,
     builtins::BuiltinManager,
     path_resolver::PathResolver,
-    redirect::RedirectHandler,
     // signal::SignalHandler,
 };
 
@@ -110,7 +110,7 @@ impl Executor for RecursiveExecutor {
                     Ok(0)
                 }
             }
-            AstNode::Subshell(inner) => {
+            AstNode::Subshell(_inner) => {
                 Err(ExecError::NotImplemented("Not implemented".to_string()))
             }
             _ => Err(ExecError::NotImplemented("Not implemented".to_string())),

@@ -134,9 +134,9 @@ impl RedirectHandler {
 mod tests {
     use std::fs::{File, read_to_string, remove_file};
     use std::io::Write;
+    use super::*;
     use crate::ast::{AstNode, CommandNode, CommandKind, RedirectKind};
     use crate::environment::Environment;
-    use crate::executor::redirect::RedirectHandler;
 
     #[test]
     fn test_redirect_out_creates_file() {
@@ -153,7 +153,7 @@ mod tests {
         let cmd_node = AstNode::Command(cmd.clone());
 
         // 3. Prepare the redirect node
-        let redirect_node = AstNode::Redirect {
+        let _redirect_node = AstNode::Redirect {
             node: Box::new(cmd_node.clone()),
             kind: RedirectKind::Out,
             file: file_name.to_string(),
@@ -197,7 +197,7 @@ mod tests {
         };
         let cmd_node = AstNode::Command(cmd.clone());
 
-        let redirect_node = AstNode::Redirect {
+        let _redirect_node = AstNode::Redirect {
             node: Box::new(cmd_node.clone()),
             kind: RedirectKind::In,
             file: file_name.to_string(),

@@ -3,7 +3,6 @@ mod recursive_executor;
 mod flatten_executor;
 mod builtins;
 mod path_resolver;
-mod redirect;
 mod tests;
 
 pub use executor::{Executor, ExecError, ExecStatus};

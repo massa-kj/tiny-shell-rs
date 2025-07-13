@@ -1,6 +1,6 @@
 fn main() {
     use tiny_shell_rs::lexer::{Lexer};
-    use tiny_shell_rs::parser::{Parser, default::DefaultParser};
+    use tiny_shell_rs::parser::{Parser, DefaultParser};
     use tiny_shell_rs::expander;
     use tiny_shell_rs::environment::Environment;
     use tiny_shell_rs::prompt::ShellPrompt;

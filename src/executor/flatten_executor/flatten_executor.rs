@@ -11,37 +11,102 @@ pub struct FlattenExecutor;
 // pub struct DryRunExecutor;
 // pub struct LoggingExecutor;
 
+#[derive(Debug, Clone, PartialEq)]
+enum ExecStep {
+    RunCommand(CommandNode),
+    BeginRedirect {
+        kind: RedirectKind,
+        file: String,
+    },
+    EndRedirect {
+        kind: RedirectKind,
+    },
+    BeginPipeline,
+    EndPipeline,
+    WaitForChild(i32),
+}
+
 impl Executor for FlattenExecutor {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
-        match node {
-            AstNode::Command(cmd) => self.exec_command(cmd, env),
-            AstNode::Pipeline(_, _) => self.exec_pipeline(node, env),
-            AstNode::Redirect { node, kind, file } => self.exec_redirect(node, kind, file, env),
-            AstNode::Subshell(sub) => self.exec_subshell(sub, env),
-            AstNode::Sequence(lhs, rhs) => {
-                self.exec(lhs, env)?;
-                self.exec(rhs, env)
-            }
-            AstNode::And(lhs, rhs) => {
-                if self.exec(lhs, env)? == 0 {
-                    self.exec(rhs, env)
-                } else {
-                    Ok(1)
+        let mut plan = Vec::new();
+        self.flatten_ast(node, &mut plan);
+
+        for step in &plan {
+            match step {
+                ExecStep::RunCommand(cmd) => {
+                    self.run_command(cmd, env)?;
+                }
+                ExecStep::BeginRedirect { kind, file } => {
+                    self.begin_redirect(kind, file)?;
+                }
+                ExecStep::EndRedirect { kind } => {
+                    self.end_redirect(kind)?;
+                }
+                ExecStep::BeginPipeline => {
+                    self.begin_pipeline()?;
+                }
+                ExecStep::EndPipeline => {
+                    self.end_pipeline()?;
+                }
+                ExecStep::WaitForChild(pid) => {
+                    self.wait_for_child(*pid)?;
                 }
             }
-            AstNode::Or(lhs, rhs) => {
-                if self.exec(lhs, env)? != 0 {
-                    self.exec(rhs, env)
-                } else {
-                    Ok(0)
-                }
-            }
-            AstNode::Compound(_) => unimplemented!(),
         }
+
+        Ok(0)
+        // match node {
+        //     AstNode::Command(cmd) => self.exec_command(cmd, env),
+        //     AstNode::Pipeline(_, _) => self.exec_pipeline(node, env),
+        //     AstNode::Redirect { node, kind, file } => self.exec_redirect(node, kind, file, env),
+        //     AstNode::Subshell(sub) => self.exec_subshell(sub, env),
+        //     AstNode::Sequence(lhs, rhs) => {
+        //         self.exec(lhs, env)?;
+        //         self.exec(rhs, env)
+        //     }
+        //     AstNode::And(lhs, rhs) => {
+        //         if self.exec(lhs, env)? == 0 {
+        //             self.exec(rhs, env)
+        //         } else {
+        //             Ok(1)
+        //         }
+        //     }
+        //     AstNode::Or(lhs, rhs) => {
+        //         if self.exec(lhs, env)? != 0 {
+        //             self.exec(rhs, env)
+        //         } else {
+        //             Ok(0)
+        //         }
+        //     }
+        //     AstNode::Compound(_) => unimplemented!(),
+        // }
     }
 }
 
 impl FlattenExecutor {
+    fn flatten_ast(&self, node: &AstNode, plan: &mut Vec<ExecStep>) {
+        unimplemented!();
+    }
+
+    fn run_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
+        unimplemented!()
+    }
+    fn begin_redirect(&mut self, kind: &RedirectKind, file: &str) -> ExecStatus {
+        unimplemented!()
+    }
+    fn end_redirect(&mut self, kind: &RedirectKind) -> ExecStatus {
+        unimplemented!()
+    }
+    fn begin_pipeline(&mut self) -> ExecStatus {
+        unimplemented!()
+    }
+    fn end_pipeline(&mut self) -> ExecStatus {
+        unimplemented!()
+    }
+    fn wait_for_child(&mut self, pid: i32) -> ExecStatus {
+        unimplemented!()
+    }
+
     fn exec_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
         // Built-in command execution
         let builtin_manager = BuiltinManager::new();

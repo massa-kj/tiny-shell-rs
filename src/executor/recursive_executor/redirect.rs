@@ -124,6 +124,11 @@ impl RedirectHandler {
                 let status = executor.exec(right, env);
                 libc::dup2(saved, 0);
                 libc::close(saved);
+
+                // Reclaiming child processes
+                let mut status_code = 0;
+                libc::waitpid(pid, &mut status_code, 0);
+
                 status
             }
         }

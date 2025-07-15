@@ -56,10 +56,12 @@ mod tests {
                     self.log.push(format!("command: {} {:?}", cmd.name, cmd.args));
                     Ok(0)
                 }
-                AstNode::Pipeline(left, right) => {
+                AstNode::Pipeline(nodes) => {
                     self.log.push("pipeline".to_string());
-                    self.exec(left, env)?;
-                    self.exec(right, env)
+                    for node in nodes {
+                        self.exec(node, env)?;
+                    }
+                    Ok(0)
                 }
                 AstNode::Redirect { node, kind, file } => {
                     self.log.push(format!("redirect: {:?} {}", kind, file));
@@ -125,10 +127,10 @@ mod tests {
 
     #[test]
     fn test_pipeline() {
-        let ast = AstNode::Pipeline(
-            Box::new(dummy_cmd("ls", &[])),
-            Box::new(dummy_cmd("wc", &[])),
-        );
+        let ast = AstNode::Pipeline(vec![
+            dummy_cmd("ls", &[]),
+            dummy_cmd("wc", &[]),
+        ]);
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
@@ -164,10 +166,10 @@ mod tests {
     fn test_complex_pipeline_with_redirect_and_subshell() {
         // (ls | grep foo) > out.txt
         let ast = AstNode::Redirect {
-            node: Box::new(AstNode::Subshell(Box::new(AstNode::Pipeline(
-                Box::new(dummy_cmd("ls", &[])),
-                Box::new(dummy_cmd("grep", &["foo"])),
-            )))),
+            node: Box::new(AstNode::Subshell(Box::new(AstNode::Pipeline(vec![
+                dummy_cmd("ls", &[]),
+                dummy_cmd("grep", &["foo"]),
+            ])))),
             kind: RedirectKind::Out,
             file: "out.txt".to_string(),
         };

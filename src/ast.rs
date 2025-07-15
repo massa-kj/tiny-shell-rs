@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Command(CommandNode),
-    Pipeline(Box<AstNode>, Box<AstNode>),
+    Pipeline(Vec<AstNode>),
     Redirect {
         node: Box<AstNode>,
         kind: RedirectKind,

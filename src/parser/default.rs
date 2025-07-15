@@ -56,40 +56,48 @@ impl<'a> Parser for DefaultParser<'a> {
 
 impl<'a> DefaultParser<'a> {
     fn parse_sequence(&mut self) -> Result<AstNode, ParseError> {
-        let mut node = self.parse_and_or()?;
+        let mut node = self.parse_or()?;
         while self.consume(&TokenKind::Semicolon) {
-            let rhs = self.parse_and_or()?;
+            let rhs = self.parse_or()?;
             node = AstNode::Sequence(Box::new(node), Box::new(rhs));
         }
         Ok(node)
     }
 
-    fn parse_and_or(&mut self) -> Result<AstNode, ParseError> {
+    fn parse_or(&mut self) -> Result<AstNode, ParseError> {
+        let mut node = self.parse_and()?;
+
+        while self.consume(&TokenKind::Or) {
+            let rhs = self.parse_and()?;
+            node = AstNode::Or(Box::new(node), Box::new(rhs));
+        }
+        Ok(node)
+    }
+
+    fn parse_and(&mut self) -> Result<AstNode, ParseError> {
         let mut node = self.parse_pipeline()?;
-        loop {
-            if self.consume(&TokenKind::And) {
-                let rhs = self.parse_pipeline()?;
-                node = AstNode::And(Box::new(node), Box::new(rhs));
-            } else if self.consume(&TokenKind::Or) {
-                let rhs = self.parse_pipeline()?;
-                node = AstNode::Or(Box::new(node), Box::new(rhs));
-            } else {
-                break;
-            }
+
+        while self.consume(&TokenKind::And) {
+            let rhs = self.parse_pipeline()?;
+            node = AstNode::And(Box::new(node), Box::new(rhs));
         }
         Ok(node)
     }
 
     fn parse_pipeline(&mut self) -> Result<AstNode, ParseError> {
         // First, get the smallest syntactic unit.
-        let mut node = self.parse_command_like()?;
+        let mut nodes = vec![self.parse_command_like()?];
         // Connected by pipes
         while self.consume(&TokenKind::Pipe) {
             let rhs = self.parse_command_like()?;
-            node = AstNode::Pipeline(Box::new(node), Box::new(rhs));
+            nodes.push(rhs);
         }
         // Add a redirect to the entire pipe
-        self.parse_with_redirect(node)
+        if nodes.len() == 1 {
+            return self.parse_with_redirect(nodes.remove(0));
+        } else {
+            return self.parse_with_redirect(AstNode::Pipeline(nodes))
+        }
     }
 
     // build "pipe elements" such as commands and subshells
@@ -266,18 +274,18 @@ mod tests {
         let ast = lex_and_parse("ls | grep foo");
         assert_eq!(
             ast,
-            AstNode::Pipeline(
-                Box::new(AstNode::Command(CommandNode {
+            AstNode::Pipeline(vec![
+                AstNode::Command(CommandNode {
                     name: "ls".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                })),
-                Box::new(AstNode::Command(CommandNode {
+                }),
+                AstNode::Command(CommandNode {
                     name: "grep".to_string(),
                     args: vec!["foo".to_string()],
                     kind: CommandKind::Simple,
-                }))
-            )
+                }),
+            ])
         );
     }
 
@@ -341,18 +349,20 @@ mod tests {
         assert_eq!(
             ast,
             AstNode::And(
-                Box::new(AstNode::Subshell(Box::new(AstNode::Pipeline(
-                    Box::new(AstNode::Command(CommandNode {
-                        name: "ls".to_string(),
-                        args: vec![],
-                        kind: CommandKind::Simple,
-                    })),
-                    Box::new(AstNode::Command(CommandNode {
-                        name: "grep".to_string(),
-                        args: vec!["foo".to_string()],
-                        kind: CommandKind::Simple,
-                    }))
-                )))),
+                Box::new(AstNode::Subshell(
+                    Box::new(AstNode::Pipeline(vec![
+                        AstNode::Command(CommandNode {
+                            name: "ls".to_string(),
+                            args: vec![],
+                            kind: CommandKind::Simple,
+                        }),
+                        AstNode::Command(CommandNode {
+                            name: "grep".to_string(),
+                            args: vec!["foo".to_string()],
+                            kind: CommandKind::Simple,
+                        })
+                    ])
+                ))),
                 Box::new(AstNode::Redirect {
                     node: Box::new(AstNode::Command(CommandNode {
                         name: "echo".to_string(),

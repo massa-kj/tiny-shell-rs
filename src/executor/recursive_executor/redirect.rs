@@ -83,55 +83,67 @@ impl RedirectHandler {
     }
 
     pub fn handle_pipeline(
-        // &self,
-        left: &AstNode,
-        right: &AstNode,
+        nodes: &Vec<AstNode>,
         executor: &mut dyn Executor,
         env: &mut crate::environment::Environment,
     ) -> ExecStatus {
-        // 1. create pipe
-        let mut fds = [0; 2];
-        if unsafe { libc::pipe(fds.as_mut_ptr()) } == -1 {
-            return Err(ExecError::Io(io::Error::last_os_error()));
+        if nodes.len() < 2 {
+            return Err(ExecError::Custom("Pipeline must have at least two commands".into()));
         }
-        let (read_fd, write_fd) = (fds[0], fds[1]);
 
-        // 2. Fork the child process
-        let pid = unsafe { libc::fork() };
-        if pid < 0 {
-            return Err(ExecError::Io(io::Error::last_os_error()));
-        }
-        if pid == 0 {
-            // --- Child process: left-side command (output to pipe) ---
-            unsafe {
-                libc::close(read_fd); // The read end is not needed
-                libc::dup2(write_fd, 1); // Redirect stdout to the write end of the pipe
-                libc::close(write_fd);
+        let mut pids = Vec::new();
+        let mut prev_read_fd: Option<i32> = None;
+
+        for (i, node) in nodes.iter().enumerate() {
+            let mut fds = [0; 2];
+            if i < nodes.len() - 1 {
+                if unsafe { libc::pipe(fds.as_mut_ptr()) } == -1 {
+                    return Err(ExecError::Io(io::Error::last_os_error()));
+                }
             }
-            // Create a new executor and execute the left node
-            // Note: Be careful with Rust's drop/RAII here
-            // Normally, commands are executed/terminated with execve, etc.
-            std::process::exit(
-                executor.exec(left, env).unwrap_or_else(|_| 1)
-            );
-        } else {
-            // --- Parent process: right-side command (input from pipe) ---
-            unsafe {
-                libc::close(write_fd);
-                let saved = libc::dup(0);
-                libc::dup2(read_fd, 0);
-                libc::close(read_fd);
-                let status = executor.exec(right, env);
-                libc::dup2(saved, 0);
-                libc::close(saved);
 
-                // Reclaiming child processes
-                let mut status_code = 0;
-                libc::waitpid(pid, &mut status_code, 0);
-
-                status
+            let pid = unsafe { libc::fork() };
+            if pid < 0 {
+                return Err(ExecError::Io(io::Error::last_os_error()));
+            }
+            if pid == 0 {
+                // Child process
+                if let Some(read_fd) = prev_read_fd {
+                    unsafe {
+                        libc::dup2(read_fd, 0); // Redirect the read end of the previous pipe to stdin
+                        libc::close(read_fd);
+                    }
+                }
+                if i < nodes.len() - 1 {
+                    unsafe {
+                        libc::close(fds[0]); // the read end is not needed
+                        libc::dup2(fds[1], 1); // redirect the write end to stdout
+                        libc::close(fds[1]);
+                    }
+                }
+                std::process::exit(
+                    executor.exec(node, env).unwrap_or_else(|_| 1)
+                );
+            } else {
+                // Parent process
+                if let Some(read_fd) = prev_read_fd {
+                    unsafe { libc::close(read_fd); }
+                }
+                if i < nodes.len() - 1 {
+                    unsafe { libc::close(fds[1]); }
+                    prev_read_fd = Some(fds[0]);
+                }
+                pids.push(pid);
             }
         }
+
+        // Handle the output of the last command in the parent process here if needed
+        // Wait for the child process to exit
+        for pid in pids {
+            let mut status_code = 0;
+            unsafe { libc::waitpid(pid, &mut status_code, 0); }
+        }
+        Ok(0)
     }
 }
 

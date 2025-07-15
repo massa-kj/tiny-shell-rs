@@ -89,12 +89,14 @@ impl Executor for RecursiveExecutor {
             AstNode::Redirect { node: inner, kind, file } => {
                 RedirectHandler::handle_redirect(inner, kind, file, self, env)
             }
-            AstNode::Pipeline(left, right) => {
-                RedirectHandler::handle_pipeline(left, right, self, env)
+            AstNode::Pipeline(nodes) => {
+                RedirectHandler::handle_pipeline(nodes, self, env)
             }
-            AstNode::Sequence(left, right) => {
-                self.exec(left, env)?;
-                self.exec(right, env)
+            AstNode::Sequence(seq) => {
+                for node in seq {
+                    self.exec(node, env)?;
+                }
+                Ok(0)
             }
             AstNode::And(left, right) => {
                 if self.exec(left, env)? == 0 {

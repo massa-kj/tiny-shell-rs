@@ -71,10 +71,12 @@ mod tests {
                     self.log.push("subshell".to_string());
                     self.exec(sub, &mut env.clone()) // サブシェルはcloneで
                 }
-                AstNode::Sequence(lhs, rhs) => {
+                AstNode::Sequence(seq) => {
                     self.log.push("sequence".to_string());
-                    self.exec(lhs, env)?;
-                    self.exec(rhs, env)
+                    for node in seq {
+                        self.exec(node, env)?;
+                    }
+                    Ok(0)
                 }
                 AstNode::And(lhs, rhs) => {
                     self.log.push("and".to_string());
@@ -192,16 +194,16 @@ mod tests {
     #[test]
     fn test_sequence_and_and_or() {
         // echo hi && false || echo fallback; echo done
-        let ast = AstNode::Sequence(
-            Box::new(AstNode::Or(
+        let ast = AstNode::Sequence(vec![
+            AstNode::Or(
                 Box::new(AstNode::And(
                     Box::new(dummy_cmd("echo", &["hi"])),
                     Box::new(dummy_cmd("false", &[])),
                 )),
                 Box::new(dummy_cmd("echo", &["fallback"])),
-            )),
-            Box::new(dummy_cmd("echo", &["done"])),
-        );
+            ),
+            dummy_cmd("echo", &["done"]),
+        ]);
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);

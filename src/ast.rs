@@ -7,7 +7,7 @@ pub enum AstNode {
         kind: RedirectKind,
         file: String,
     },
-    Sequence(Box<AstNode>, Box<AstNode>),
+    Sequence(Vec<AstNode>),
     And(Box<AstNode>, Box<AstNode>),
     Or(Box<AstNode>, Box<AstNode>),
     Subshell(Box<AstNode>),

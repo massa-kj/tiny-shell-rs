@@ -59,7 +59,8 @@ impl<'a> DefaultParser<'a> {
         let mut node = self.parse_or()?;
         while self.consume(&TokenKind::Semicolon) {
             let rhs = self.parse_or()?;
-            node = AstNode::Sequence(Box::new(node), Box::new(rhs));
+            let seq = vec![node, rhs];
+            node = AstNode::Sequence(seq);
         }
         Ok(node)
     }
@@ -225,18 +226,18 @@ mod tests {
         let ast = lex_and_parse("ls; pwd");
         assert_eq!(
             ast,
-            AstNode::Sequence(
-                Box::new(AstNode::Command(CommandNode {
+            AstNode::Sequence(vec![
+                AstNode::Command(CommandNode {
                     name: "ls".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                })),
-                Box::new(AstNode::Command(CommandNode {
+                }),
+                AstNode::Command(CommandNode {
                     name: "pwd".to_string(),
                     args: vec![],
                     kind: CommandKind::Simple,
-                }))
-            )
+                })
+            ])
         );
     }
 
@@ -327,18 +328,20 @@ mod tests {
         let ast = lex_and_parse("(echo foo; ls)");
         assert_eq!(
             ast,
-            AstNode::Subshell(Box::new(AstNode::Sequence(
-                Box::new(AstNode::Command(CommandNode {
-                    name: "echo".to_string(),
-                    args: vec!["foo".to_string()],
-                    kind: CommandKind::Simple,
-                })),
-                Box::new(AstNode::Command(CommandNode {
-                    name: "ls".to_string(),
-                    args: vec![],
-                    kind: CommandKind::Simple,
-                }))
-            )))
+            AstNode::Subshell(
+                Box::new(AstNode::Sequence(vec![
+                    AstNode::Command(CommandNode {
+                        name: "echo".to_string(),
+                        args: vec!["foo".to_string()],
+                        kind: CommandKind::Simple,
+                    }),
+                    AstNode::Command(CommandNode {
+                        name: "ls".to_string(),
+                        args: vec![],
+                        kind: CommandKind::Simple,
+                    })
+                ])
+            ))
         );
     }
 

@@ -297,9 +297,9 @@ let ast = AstNode::If(
 pub trait Executor {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus;
 }
-pub struct DefaultExecutor;
 pub type ExecStatus = Result<i32, ExecError>;
 pub enum ExecError;
+pub struct FlattenExecutor;
 ```
 
 ### executor/builtin
@@ -309,10 +309,10 @@ pub trait BuiltinCommand {
     fn name(&self) -> &'static str;
     fn execute(&self, args: &[String], env: &mut EnvManager) -> Result<i32, ExecError>;
 }
-pub struct BuiltinRegistry;
-impl BuiltinRegistry {
+pub struct BuiltinManager;
+impl BuiltinManager {
     pub fn register(&mut self, cmd: Box<dyn BuiltinCommand>);
-    pub fn find(&self, name: &str) -> Option<&Box<dyn BuiltinCommand>>;
+    pub fn is_builtin(&self, name: &str) -> bool;
 }
 ```
 
@@ -325,16 +325,6 @@ impl PathResolver {
 }
 ```
 
-### executor/redirect
-
-```rust
-pub struct RedirectHandler;
-impl RedirectHandler {
-    pub fn handle_redirect(&self, node: &AstNode) -> Result<(), ExecError>;
-    pub fn handle_pipeline(&self, node: &AstNode) -> Result<(), ExecError>;
-}
-```
-
 ### executor/signal
 
 ```rust
@@ -342,6 +332,24 @@ pub struct SignalHandler;
 impl SignalHandler {
     pub fn handle_signals(&self);
 }
+```
+
+### executor/recursive_executor
+
+```rust
+pub struct RecursiceExecutor;
+pub struct RedirectHandler;
+impl RedirectHandler {
+    pub fn handle_redirect(&self, node: &AstNode) -> Result<(), ExecError>;
+    pub fn handle_pipeline(&self, node: &AstNode) -> Result<(), ExecError>;
+}
+```
+
+### executor/flatten_executor
+
+```rust
+pub struct FlattenExecutor;
+pub struct FlattenAst;
 ```
 
 ### repl

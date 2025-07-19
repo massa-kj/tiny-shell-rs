@@ -57,9 +57,8 @@ impl Executor for FlattenExecutor {
                     self.begin_pipeline()?;
                 }
                 ExecStep::EndPipeline => {
-                    self.exec_pipeline(&pipeline_cmds, env)?;
+                    self.end_pipeline(&pipeline_cmds, env)?;
                     pipeline_cmds.clear();
-                    self.in_pipeline = false;
                 }
             }
         }
@@ -201,8 +200,10 @@ impl FlattenExecutor {
         Ok(0)
     }
 
-    fn exec_pipeline(&mut self, cmds: &[CommandNode], env: &mut Environment) -> ExecStatus {
-        PipelineHandler::exec_pipeline_generic(cmds, |cmd| self.run_command(cmd, env))  
+    fn end_pipeline(&mut self, cmds: &[CommandNode], env: &mut Environment) -> ExecStatus {
+        PipelineHandler::exec_pipeline_generic(cmds, |cmd| self.run_command(cmd, env))?;
+        self.in_pipeline = false;
+        Ok(0)
     }
 
     fn run_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {

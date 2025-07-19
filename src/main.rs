@@ -44,11 +44,11 @@ fn main() {
             }
         };
 
-        let mut executor = RecursiveExecutor{
-            builtin_registry: tiny_shell_rs::executor::BuiltinManager::new(),
-            path_resolver: tiny_shell_rs::executor::PathResolver,
-        };
-        // let mut executor = RecursiveExecutor;
+        // let mut executor = RecursiveExecutor{
+        //     builtin_registry: tiny_shell_rs::executor::BuiltinManager::new(),
+        //     path_resolver: tiny_shell_rs::executor::PathResolver,
+        // };
+        let mut executor = FlattenExecutor::new();
         match executor.exec(&expanded, &mut env) {
             Ok(_) => continue,
             Err(e) => {

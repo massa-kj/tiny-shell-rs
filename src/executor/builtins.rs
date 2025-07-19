@@ -98,12 +98,12 @@ impl BuiltinCommand for ExportCommand {
     fn name(&self) -> &'static str {
         "export"
     }
-    fn run(&self, args: &[String], env: &mut Environment) -> i32 {
-        for arg in args {
-            if let Some((k, v)) = arg.split_once('=') {
-                // env.envs.insert(k.to_string(), v.to_string());
-            }
-        }
+    fn run(&self, _args: &[String], _env: &mut Environment) -> i32 {
+        // for arg in args {
+        //     if let Some((k, v)) = arg.split_once('=') {
+        //         env.envs.insert(k.to_string(), v.to_string());
+        //     }
+        // }
         0
     }
 }

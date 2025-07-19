@@ -3,6 +3,7 @@ mod recursive_executor;
 mod flatten_executor;
 mod builtins;
 mod path_resolver;
+mod pipeline;
 mod tests;
 
 pub use executor::{Executor, ExecError, ExecStatus};

@@ -4,6 +4,7 @@ use std::os::unix::io::AsRawFd;
 use super::super::executor::{ Executor, ExecStatus, ExecError };
 use super::super::builtins::BuiltinManager;
 use super::super::path_resolver::PathResolver;
+use super::super::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
 
@@ -11,8 +12,6 @@ pub struct FlattenExecutor {
     stdin_stack: Vec<i32>,
     stdout_stack: Vec<i32>,
     // stderr_stack: Vec<i32>,
-    prev_read_fd: Option<i32>, // The read end of the previous pipe
-    child_pids: Vec<i32>, // The process id of each child in the pipeline
     in_pipeline: bool, // Whether or not in the pipeline
 }
 
@@ -60,6 +59,7 @@ impl Executor for FlattenExecutor {
                 ExecStep::EndPipeline => {
                     self.exec_pipeline(&pipeline_cmds, env)?;
                     pipeline_cmds.clear();
+                    self.in_pipeline = false;
                 }
             }
         }
@@ -73,8 +73,6 @@ impl FlattenExecutor {
             stdin_stack: Vec::new(),
             stdout_stack: Vec::new(),
             // stderr_stack: Vec::new(),
-            prev_read_fd: None,
-            child_pids: Vec::new(),
             in_pipeline: false,
         }
     }
@@ -199,71 +197,12 @@ impl FlattenExecutor {
     }
 
     fn begin_pipeline(&mut self) -> ExecStatus {
-        self.prev_read_fd = None;
-        self.child_pids.clear();
         self.in_pipeline = true;
         Ok(0)
     }
 
     fn exec_pipeline(&mut self, cmds: &[CommandNode], env: &mut Environment) -> ExecStatus {
-        if cmds.len() < 2 {
-            return Err(ExecError::Custom("Pipeline must have at least two commands".into()));
-        }
-
-        let mut prev_read_fd: Option<i32> = None;
-        let mut child_pids = Vec::new();
-
-        for (i, cmd) in cmds.iter().enumerate() {
-            let is_last = i == cmds.len() - 1;
-            let mut pipefds = [0; 2];
-
-            if !is_last {
-                if unsafe { libc::pipe(pipefds.as_mut_ptr()) } == -1 {
-                    return Err(ExecError::Io(std::io::Error::last_os_error()));
-                }
-            }
-
-            let pid = unsafe { libc::fork() };
-            if pid < 0 {
-                return Err(ExecError::Io(std::io::Error::last_os_error()));
-            }
-
-            if pid == 0 {
-                // Child process
-                if let Some(read_fd) = prev_read_fd {
-                    unsafe {
-                        libc::dup2(read_fd, 0); // Redirect the read end of the previous pipe to stdin
-                        libc::close(read_fd);
-                    }
-                }
-                if !is_last {
-                    unsafe {
-                        libc::close(pipefds[0]); // the read end is not needed
-                        libc::dup2(pipefds[1], 1); // redirect the write end to stdout
-                        libc::close(pipefds[1]);
-                    }
-                }
-                std::process::exit(self.run_command(cmd, env).unwrap_or(1));
-            } else {
-                // Parent process
-                if let Some(read_fd) = prev_read_fd {
-                    unsafe { libc::close(read_fd); }
-                }
-                if !is_last {
-                    unsafe { libc::close(pipefds[1]); }
-                    prev_read_fd = Some(pipefds[0]);
-                } else {
-                    prev_read_fd = None;
-                }
-                child_pids.push(pid);
-            }
-        }
-        // Wait for all child processes
-        for pid in child_pids {
-            let mut status_code = 0;
-            unsafe { libc::waitpid(pid, &mut status_code, 0); }
-        }
-        Ok(0)
+        PipelineHandler::exec_pipeline_generic(cmds, |cmd| self.run_command(cmd, env))  
     }
 
     fn run_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {

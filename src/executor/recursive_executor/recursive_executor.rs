@@ -1,5 +1,6 @@
 use std::process::Command;
 use super::redirect::RedirectHandler;
+use super::super::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, CommandKind};
 use crate::environment::Environment;
 use crate::executor::{
@@ -90,7 +91,7 @@ impl Executor for RecursiveExecutor {
                 RedirectHandler::handle_redirect(inner, kind, file, self, env)
             }
             AstNode::Pipeline(nodes) => {
-                RedirectHandler::handle_pipeline(nodes, self, env)
+                PipelineHandler::exec_pipeline_generic(nodes, |node| self.exec(node, env))
             }
             AstNode::Sequence(seq) => {
                 for node in seq {

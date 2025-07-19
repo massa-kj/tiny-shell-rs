@@ -71,3 +71,34 @@ impl PipelineHandler {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::{ExecError, ExecStatus};
+
+    #[test]
+    fn test_pipeline_with_two_nodes_success() {
+        let nodes = vec![1, 2];
+        let exec_fn = |_n: &i32| Ok(0);
+        let result = PipelineHandler::exec_pipeline_generic(&nodes, exec_fn);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pipeline_with_one_node_should_fail() {
+        let nodes = vec![1];
+        let exec_fn = |_n: &i32| Ok(0);
+        let result = PipelineHandler::exec_pipeline_generic(&nodes, exec_fn);
+        assert!(matches!(result, Err(ExecError::Custom(_))));
+    }
+
+    #[test]
+    fn test_pipeline_exec_fn_error_propagation() {
+        let nodes = vec![1, 2];
+        let exec_fn = |_n: &i32| Err(ExecError::Custom("fail".into()));
+        let result = PipelineHandler::exec_pipeline_generic(&nodes, exec_fn);
+        // The error is only visible in the child, parent always returns Ok(0)
+        assert!(result.is_ok());
+    }
+}
+

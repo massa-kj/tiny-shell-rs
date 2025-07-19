@@ -1,10 +1,5 @@
 # Design Document
 
-## Purpose / Policy
-
-- For study purpose
-- Scalability, Testability, Consistency
-
 ## Architecture Overview
 
 ```mermaid

@@ -91,13 +91,15 @@ impl RedirectHandler {
             return Err(ExecError::Custom("Pipeline must have at least two commands".into()));
         }
 
-        let mut pids = Vec::new();
         let mut prev_read_fd: Option<i32> = None;
+        let mut child_pids = Vec::new();
 
         for (i, node) in nodes.iter().enumerate() {
-            let mut fds = [0; 2];
-            if i < nodes.len() - 1 {
-                if unsafe { libc::pipe(fds.as_mut_ptr()) } == -1 {
+            let is_last = i == nodes.len() - 1;
+            let mut pipefds = [0; 2];
+
+            if !is_last {
+                if unsafe { libc::pipe(pipefds.as_mut_ptr()) } == -1 {
                     return Err(ExecError::Io(io::Error::last_os_error()));
                 }
             }
@@ -106,6 +108,7 @@ impl RedirectHandler {
             if pid < 0 {
                 return Err(ExecError::Io(io::Error::last_os_error()));
             }
+
             if pid == 0 {
                 // Child process
                 if let Some(read_fd) = prev_read_fd {
@@ -116,9 +119,9 @@ impl RedirectHandler {
                 }
                 if i < nodes.len() - 1 {
                     unsafe {
-                        libc::close(fds[0]); // the read end is not needed
-                        libc::dup2(fds[1], 1); // redirect the write end to stdout
-                        libc::close(fds[1]);
+                        libc::close(pipefds[0]); // the read end is not needed
+                        libc::dup2(pipefds[1], 1); // redirect the write end to stdout
+                        libc::close(pipefds[1]);
                     }
                 }
                 std::process::exit(
@@ -130,16 +133,17 @@ impl RedirectHandler {
                     unsafe { libc::close(read_fd); }
                 }
                 if i < nodes.len() - 1 {
-                    unsafe { libc::close(fds[1]); }
-                    prev_read_fd = Some(fds[0]);
+                    unsafe { libc::close(pipefds[1]); }
+                    prev_read_fd = Some(pipefds[0]);
+                } else {
+                    prev_read_fd = None;
                 }
-                pids.push(pid);
+                child_pids.push(pid);
             }
         }
 
-        // Handle the output of the last command in the parent process here if needed
         // Wait for the child process to exit
-        for pid in pids {
+        for pid in child_pids {
             let mut status_code = 0;
             unsafe { libc::waitpid(pid, &mut status_code, 0); }
         }

@@ -206,6 +206,10 @@ impl FlattenExecutor {
     }
 
     fn exec_pipeline(&mut self, cmds: &[CommandNode], env: &mut Environment) -> ExecStatus {
+        if cmds.len() < 2 {
+            return Err(ExecError::Custom("Pipeline must have at least two commands".into()));
+        }
+
         let mut prev_read_fd: Option<i32> = None;
         let mut child_pids = Vec::new();
 
@@ -227,18 +231,15 @@ impl FlattenExecutor {
             if pid == 0 {
                 // Child process
                 if let Some(read_fd) = prev_read_fd {
-                    unsafe { libc::dup2(read_fd, 0); }
-                }
-                if !is_last {
-                    unsafe { libc::dup2(pipefds[1], 1); }
-                }
-                // close不要なfd
-                if let Some(read_fd) = prev_read_fd {
-                    unsafe { libc::close(read_fd); }
+                    unsafe {
+                        libc::dup2(read_fd, 0); // Redirect the read end of the previous pipe to stdin
+                        libc::close(read_fd);
+                    }
                 }
                 if !is_last {
                     unsafe {
-                        libc::close(pipefds[0]);
+                        libc::close(pipefds[0]); // the read end is not needed
+                        libc::dup2(pipefds[1], 1); // redirect the write end to stdout
                         libc::close(pipefds[1]);
                     }
                 }
@@ -259,8 +260,8 @@ impl FlattenExecutor {
         }
         // Wait for all child processes
         for pid in child_pids {
-            let mut status = 0;
-            unsafe { libc::waitpid(pid, &mut status, 0); }
+            let mut status_code = 0;
+            unsafe { libc::waitpid(pid, &mut status_code, 0); }
         }
         Ok(0)
     }

@@ -1,5 +1,22 @@
 # Design Document
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Module Structure](#module-structure)
+- [Public API](#public-api)
+  - [lexer](#lexer)
+  - [ast](#ast)
+  - [parser](#parser)
+  - [executor](#executor)
+  - [repl](#repl)
+  - [io/input](#ioinput)
+  - [io/output](#iooutput)
+  - [env](#env)
+  - [history](#history)
+  - [config](#config)
+  - [error](#error)
+
 ## Architecture Overview
 
 ```mermaid
@@ -403,11 +420,44 @@ impl EnvManager {
 ### history
 
 ```rust
-pub struct History;
-impl History {
-    pub fn add(&mut self, entry: &str);
-    pub fn get(&self, index: usize) -> Option<&String>;
-    pub fn last(&self) -> Option<&String>;
+pub struct HistoryManager {
+    entries: Vec<String>,
+    max_len: usize,
+    file_path: Option<String>,
+}
+
+impl HistoryManager {
+    // Load from history file
+    pub fn load(path: &str) -> std::io::Result<Self>;
+
+    // Save history
+    pub fn save(&self, path: &str) -> std::io::Result<()>;
+
+    // Add a command to history
+    pub fn add(&mut self, line: &str);
+
+    // Get the history list (read-only)
+    pub fn list(&self) -> &[String];
+
+    // Get the nth history entry
+    pub fn get(&self, idx: usize) -> Option<&str>;
+
+    // Number of history entries
+    pub fn len(&self) -> usize;
+
+    // Clear history
+    pub fn clear(&mut self);
+
+    // Get the latest history entry (the last entered command)
+    pub fn last(&self) -> Option<&str>;
+
+    pub fn iter(&self) -> impl Iterator<Item=&str>;
+
+    pub fn remove(&mut self, idx: usize);
+
+    pub fn set_max_len(&mut self, max: usize);
+
+    pub fn set_file_path(&mut self, path: String);
 }
 ```
 

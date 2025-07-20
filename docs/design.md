@@ -5,112 +5,100 @@
 - [Architecture Overview](#architecture-overview)
 - [Module Structure](#module-structure)
 - [Public API](#public-api)
-  - [lexer](#lexer)
-  - [ast](#ast)
-  - [parser](#parser)
-  - [executor](#executor)
   - [repl](#repl)
   - [io/input](#ioinput)
-  - [io/output](#iooutput)
-  - [env](#env)
-  - [history](#history)
-  - [config](#config)
+  - [io/output](#iooutput-draft)
+  - [ast](#ast)
+  - [lexer](#lexer)
+  - [parser](#parser)
+  - [executor](#executor)
+    - [executor/builtin](#executorbuiltin)
+    - [executor/path_resolver](#executorpath_resolver)
+    - [executor/pipeline](#executorpipeline)
+    - [executor/signal](#executorsignal)
+    - [executor/recursive_executor](#executorrecursive_executor)
+    - [executor/flatten_executor](#executorflatten_executor)
+  - [state](#statedraft)
+  - [env](#envdraft)
+  - [history](#historydraft)
+  - [config](#configdraft)
   - [error](#error)
 
 ## Architecture Overview
 
+The architecture is organized into 6 distinct layers, each with clear responsibility and direction of data/control flow:
+
+1. IO Layer  
+   Handles communication with the user.
+   - Components: InputHandler, OutputHandler
+
+1. Parse Layer  
+   Converts user input into an abstract syntax tree (AST).
+   - Components: Lexer, Parser, AST
+
+1. Middle Layer  
+   Expands and transforms the AST before execution.
+   - Components: Expander (e.g., variable substitution, command expansion)
+
+1. Execution Layer  
+   Executes the expanded command structures, manages system interaction.
+   - Components: Executor (RecursiveExecutor / FlattenExecutor), Builtins, PathResolver
+
+1. State Layer  
+   Maintains shell runtime state such as environment variables, input history, and user configuration.
+   - Components: ReplState / ShellContext (includes EnvManager, History, ConfigLoader)
+   - Purpose: Acts as a shared, mutable context for both REPL and Executor phases
+
+1. Control Layer  
+   Orchestrates the full pipeline from input to output, coordinating all layers.
+   - Components: Repl
+
 ```mermaid
 flowchart TD
-  subgraph In/Out module
-    InputHandler["Input Handler (Stdin)"]
-    OutputHandler["Output Handler (Stdout/Stderr)"]
-  end
-  subgraph REPL module
-    REPL["REPL Loop"]
-  end
-  subgraph Parser module
-    Lexer["Lexical Analysis"]
-    Parser["Syntax Analysis"]
-  end
-  subgraph Executor module
-    Executor["Command Execution Engine"]
-    Builtins["Builtin Commands"]
-    PathResolver["Path Resolver"]
-    Redirect["Redirect/Pipe Handling"]
-    SignalHandler["Signal Handler"]
-    EnvManager["Environment Variable Manager"]
-    History["History/Completion"]
-    ConfigLoader["Config File Loader"]
-  end
-  subgraph Test module
-    TestModule["Test Module"]
+  subgraph IO Layer
+    InputHandler
+    OutputHandler
   end
 
-  InputHandler --> REPL
-  REPL --> Lexer
-  Lexer --> Parser
-  Parser --> Executor
-  Executor -->|External| OutputHandler
+  subgraph Parse Layer
+    Lexer
+    Parser
+    AST["AST"]
+  end
+
+  subgraph Middle Layer
+    Expander
+  end
+
+  subgraph Execution Layer
+    Executor["Executor\n(Recursive/Flatten)"]
+    Builtins
+    PathResolver
+  end
+
+  subgraph State Layer
+    ReplState["ReplState / ShellContext"]
+    History
+    EnvManager
+    ConfigLoader
+  end
+
+  subgraph Control Layer
+    Repl
+  end
+
+  InputHandler --> Repl
+  Repl --> Lexer --> Parser --> AST --> Expander
+  Expander --> Executor
   Executor --> Builtins
   Executor --> PathResolver
-  Executor --> Redirect
-  Executor --> SignalHandler
-  Executor --> EnvManager
-  Executor --> History
-  Executor --> ConfigLoader
-  Executor -->|Result| OutputHandler
-  Executor -->|Error| OutputHandler
-  TestModule -.-> REPL
-  TestModule -.-> Executor
-  TestModule -.-> Builtins
-```
-
-```mermaid
-%% module dependency diagram
-
-graph TD
-  REPL["REPL Loop"]
-  InputHandler["Input Handler (Stdin)"]
-  OutputHandler["Output Handler (Stdout/Stderr)"]
-  Lexer["Lexical Analysis"]
-  Parser["Syntax Analysis"]
-  Executor["Command Execution Engine"]
-  Builtins["Builtin Commands"]
-  PathResolver["Path Resolution"]
-  Redirect["Redirection/Pipe Handling"]
-  SignalHandler["Signal Handler"]
-  EnvManager["Environment Variable Management"]
-  History["History Management"]
-  ConfigLoader["Configuration File Loader"]
-  TestModule["Test Module"]
-
-  %% dependency
-  REPL --> InputHandler
-  REPL --> OutputHandler
-  REPL --> Lexer
-  REPL --> Parser
-  REPL --> Executor
-  REPL --> History
-
-  Parser --> Lexer
-
-  Executor --> Builtins
-  Executor --> PathResolver
-  Executor --> Redirect
-  Executor --> SignalHandler
-  Executor --> EnvManager
-  Executor --> ConfigLoader
+  Executor --> ReplState
   Executor --> OutputHandler
 
-  Builtins --> EnvManager
-
-  History --> ConfigLoader
-
-  TestModule --> REPL
-  TestModule --> Executor
-  TestModule --> Builtins
-  TestModule --> InputHandler
-  TestModule --> OutputHandler
+  Repl --> ReplState
+  ReplState --> History
+  ReplState --> EnvManager
+  ReplState --> ConfigLoader
 ```
 
 ## Module Structure
@@ -145,6 +133,10 @@ src/                               //
 ├── io/                            //
 │   ├── input.rs                   // Standard input wrapper
 │   └── output.rs                  // Standard output/error wrapper
+├── state/                         //
+│   ├── mod.rs                     //
+│   ├── repl_state.rs              // Integrates Env, History, Config
+│   └── state_store.rs             // Persistence support
 ├── repl.rs                        // REPL loop: input handling/output control
 ├── ast.rs                         // Abstract Syntax Tree (AST) definitions
 ├── env.rs                         // Environment variable management
@@ -157,6 +149,34 @@ src/                               //
 ```
 
 ## Public API
+
+### repl
+
+```rust
+pub struct Repl;
+impl Repl {
+    pub fn run();
+}
+```
+
+### io/input
+
+```rust
+pub struct InputHandler;
+impl InputHandler {
+    pub fn read_line(prompt: &str) -> std::io::Result<Option<String>>;
+}
+```
+
+### io/output (draft)
+
+```rust
+pub struct OutputHandler;
+impl OutputHandler {
+    pub fn print(&mut self, s: &str);
+    pub fn print_error(&mut self, s: &str);
+}
+```
 
 ### lexer
 
@@ -377,35 +397,27 @@ impl Executor for FlattenExecutor;
 pub struct FlattenAst;
 ```
 
-### repl
+### state (draft)
 
 ```rust
-pub struct Repl;
-impl Repl {
-    pub fn run();
+pub struct ReplState {
+    pub env: Environment,
+    pub history: History,
+    pub config: Config,
+}
+
+impl ReplState {
+    pub fn new() -> Self {
+        let mut env = Environment::new();
+        let config = ConfigLoader::load(&mut env).unwrap_or_default();
+        let history = History::load().unwrap_or_default();
+
+        Self { env, history, config }
+    }
 }
 ```
 
-### io/input
-
-```rust
-pub struct InputHandler;
-impl InputHandler {
-    pub fn read_line(prompt: &str) -> std::io::Result<Option<String>>;
-}
-```
-
-### io/output
-
-```rust
-pub struct OutputHandler;
-impl OutputHandler {
-    pub fn print(&mut self, s: &str);
-    pub fn print_error(&mut self, s: &str);
-}
-```
-
-### env
+### env (draft)
 
 ```rust
 pub struct EnvManager;
@@ -417,7 +429,7 @@ impl EnvManager {
 }
 ```
 
-### history
+### history (draft)
 
 ```rust
 pub struct HistoryManager {
@@ -461,7 +473,7 @@ impl HistoryManager {
 }
 ```
 
-### config
+### config (draft)
 
 ```rust
 pub struct ConfigLoader;

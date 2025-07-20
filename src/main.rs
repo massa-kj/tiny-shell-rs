@@ -3,14 +3,12 @@ fn main() {
     use tiny_shell_rs::parser::{Parser, DefaultParser};
     use tiny_shell_rs::expander;
     use tiny_shell_rs::environment::Environment;
-    use tiny_shell_rs::prompt::ShellPrompt;
+    use tiny_shell_rs::io::InputHandler;
     use tiny_shell_rs::executor::{Executor, RecursiveExecutor, FlattenExecutor};
     let mut env = Environment::new();
-    let prompt = ShellPrompt::new();
 
     loop {
-        prompt.show_prompt();
-        let line = match prompt.read_line() {
+        let line = match InputHandler::read_line("$ ") {
             Ok(l) => l,
             Err(_) => break,
         };

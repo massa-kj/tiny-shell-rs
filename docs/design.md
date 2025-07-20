@@ -365,7 +365,7 @@ pub struct FlattenAst;
 ```rust
 pub struct Repl;
 impl Repl {
-    pub fn run(&mut self);
+    pub fn run();
 }
 ```
 
@@ -374,7 +374,7 @@ impl Repl {
 ```rust
 pub struct InputHandler;
 impl InputHandler {
-    pub fn read_line(&mut self, prompt: &str) -> std::io::Result<String>;
+    pub fn read_line(prompt: &str) -> std::io::Result<Option<String>>;
 }
 ```
 

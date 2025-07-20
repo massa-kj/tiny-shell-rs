@@ -115,10 +115,11 @@ src/                               //
 │   ├── command.rs                 // External command launching
 │   ├── builtin.rs                 // Built-in commands
 │   ├── path_resolver.rs           // Path resolution
+│   ├── pipeline.rs                // Pipeline Processing
 │   ├── signal.rs                  // Signal handler
 │   ├── recursive_executor/        //
 │   │   ├── mod.rs                 //
-│   │   ├── redirect.rs            // Redirection/pipe processing
+│   │   ├── redirect.rs            // Redirection processing
 │   │   └── recursive_executor.rs  //
 │   └── flatten_executor/          //
 │       ├── mod.rs                 //
@@ -320,6 +321,19 @@ impl PathResolver {
 }
 ```
 
+### executor/pipeline
+
+```rust
+pub struct PipelineHandler;
+impl PipelineHandler {
+    pub fn exec_pipeline_generic<T, F>(
+        nodes: &[T],
+        mut exec_fn: F,
+    ) -> ExecStatus
+    where F: FnMut(&T) -> Result<i32, ExecError>
+}
+```
+
 ### executor/signal
 
 ```rust
@@ -332,18 +346,17 @@ impl SignalHandler {
 ### executor/recursive_executor
 
 ```rust
-pub struct RecursiceExecutor;
+impl Executor for RecursiceExecutor;
 pub struct RedirectHandler;
 impl RedirectHandler {
     pub fn handle_redirect(&self, node: &AstNode) -> Result<(), ExecError>;
-    pub fn handle_pipeline(&self, node: &AstNode) -> Result<(), ExecError>;
 }
 ```
 
 ### executor/flatten_executor
 
 ```rust
-pub struct FlattenExecutor;
+impl Executor for FlattenExecutor;
 pub struct FlattenAst;
 ```
 

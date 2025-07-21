@@ -2,7 +2,7 @@ use std::fs::File;
 use std::process::{Command};
 use std::os::unix::io::AsRawFd;
 use crate::executor::{ Executor, ExecStatus, ExecOutcome, ExecError };
-use crate::executor::builtins::BuiltinManager;
+use crate::executor::builtin::BuiltinManager;
 use crate::executor::path_resolver::PathResolver;
 use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, RedirectKind};

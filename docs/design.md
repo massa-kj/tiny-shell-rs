@@ -42,7 +42,7 @@ The architecture is organized into 6 distinct layers, each with clear responsibi
 
 1. Execution Layer  
    Executes the expanded command structures, manages system interaction.
-   - Components: Executor (RecursiveExecutor / FlattenExecutor), Builtins, PathResolver
+   - Components: Executor (RecursiveExecutor / FlattenExecutor), Builtin, PathResolver
 
 1. State Layer  
    Maintains shell runtime state such as environment variables, input history, and user configuration.
@@ -72,7 +72,7 @@ flowchart TD
 
   subgraph Execution Layer
     Executor["Executor\n(Recursive/Flatten)"]
-    Builtins
+    Builtin
     PathResolver
   end
 
@@ -90,7 +90,7 @@ flowchart TD
   InputHandler --> Repl
   Repl --> Lexer --> Parser --> AST --> Expander
   Expander --> Executor
-  Executor --> Builtins
+  Executor --> Builtin
   Executor --> PathResolver
   Executor --> ReplState
   Executor --> OutputHandler

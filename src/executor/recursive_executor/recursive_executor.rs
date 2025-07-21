@@ -7,18 +7,18 @@ use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, CommandKind};
 use crate::environment::Environment;
 
-pub struct RecursiveExecutor {
-    pub builtin_registry: BuiltinManager,
-    pub path_resolver: PathResolver,
+pub struct RecursiveExecutor<'a> {
+    builtin_manager: &'a BuiltinManager,
+    // pub path_resolver: PathResolver,
     // pub redirect_handler: RedirectHandler,
     // pub signal_handler: SignalHandler,
 }
 
-impl RecursiveExecutor {
-    pub fn new() -> Self {
+impl<'a> RecursiveExecutor<'a> {
+    pub fn new(builtin_manager: &'a BuiltinManager) -> Self {
         RecursiveExecutor {
-            builtin_registry: BuiltinManager::new(),
-            path_resolver: PathResolver,
+            builtin_manager,
+            // path_resolver: PathResolver,
             // redirect_handler: RedirectHandler::new(),
             // signal_handler: SignalHandler::new(),
         }
@@ -31,7 +31,7 @@ impl RecursiveExecutor {
     ) -> ExecStatus {
         match cmd.kind {
             CommandKind::Builtin => {
-                // if let Some(builtin) = self.builtin_registry.find(&cmd.name) {
+                // if let Some(builtin) = self.builtin_manager.find(&cmd.name) {
                 //     builtin.execute(&cmd.args, env).map_err(ExecError::Custom(
                 //         format!("Builtin command '{}' failed", cmd.name)
                 //     ))
@@ -42,9 +42,8 @@ impl RecursiveExecutor {
             }
             CommandKind::External | CommandKind::Simple => {
                 // Built-in command execution
-                let builtin_manager = BuiltinManager::new();
-                if builtin_manager.is_builtin(&cmd.name) {
-                    return builtin_manager.execute(&cmd.name, &cmd.args, env);
+                if self.builtin_manager.is_builtin(&cmd.name) {
+                    return self.builtin_manager.execute(&cmd.name, &cmd.args, env);
                 }
 
                 let resolver = PathResolver;
@@ -77,7 +76,7 @@ impl RecursiveExecutor {
     }
 }
 
-impl Executor for RecursiveExecutor {
+impl<'a> Executor for RecursiveExecutor<'a> {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
         match node {
             AstNode::Command(cmd) => {

@@ -1,5 +1,5 @@
 use crate::ast::{AstNode};
-use crate::executor::{ExecStatus, ExecError, Executor};
+use crate::executor::{Executor, ExecStatus, ExecOutcome, ExecError};
 use crate::environment::Environment;
 
 pub struct MockExecutor {
@@ -18,7 +18,7 @@ impl Executor for MockExecutor {
         if let AstNode::Command(cmd) = node {
             self.last_cmd = Some(cmd.name.clone());
             self.last_args = cmd.args.clone();
-            Ok(0)
+            Ok(ExecOutcome::Code(0))
         } else {
             Err(ExecError::Custom("Mock: Not CommandNode".into()))
         }

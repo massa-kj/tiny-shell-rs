@@ -1,4 +1,4 @@
-use super::super::executor::{ ExecStatus, ExecError };
+use crate::executor::{ ExecStatus, ExecOutcome, ExecError };
 
 pub struct PipelineHandler;
 
@@ -8,7 +8,7 @@ impl PipelineHandler {
         mut exec_fn: F,
     ) -> ExecStatus
     where
-        F: FnMut(&T) -> Result<i32, ExecError>,
+        F: FnMut(&T) -> Result<ExecOutcome, ExecError>,
     {
         if nodes.len() < 2 {
             return Err(ExecError::Custom("Pipeline must have at least two commands".into()));
@@ -47,7 +47,10 @@ impl PipelineHandler {
                         libc::close(pipefds[1]);
                     }
                 }
-                std::process::exit(exec_fn(node).unwrap_or(1));
+                std::process::exit(match exec_fn(node) {
+                    Ok(ExecOutcome::Code(code)) | Ok(ExecOutcome::Exit(code)) => code,
+                    Err(_) => 1,
+                });
             } else {
                 // Parent process
                 if let Some(read_fd) = prev_read_fd {
@@ -67,7 +70,7 @@ impl PipelineHandler {
             let mut status_code = 0;
             unsafe { libc::waitpid(pid, &mut status_code, 0); }
         }
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 }
 
@@ -79,7 +82,7 @@ mod tests {
     #[test]
     fn test_pipeline_with_two_nodes_success() {
         let nodes = vec![1, 2];
-        let exec_fn = |_n: &i32| Ok(0);
+        let exec_fn = |_n: &i32| Ok(ExecOutcome::Code(0));
         let result = PipelineHandler::exec_pipeline_generic(&nodes, exec_fn);
         assert!(result.is_ok());
     }
@@ -87,7 +90,7 @@ mod tests {
     #[test]
     fn test_pipeline_with_one_node_should_fail() {
         let nodes = vec![1];
-        let exec_fn = |_n: &i32| Ok(0);
+        let exec_fn = |_n: &i32| Ok(ExecOutcome::Code(0));
         let result = PipelineHandler::exec_pipeline_generic(&nodes, exec_fn);
         assert!(matches!(result, Err(ExecError::Custom(_))));
     }

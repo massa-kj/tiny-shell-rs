@@ -1,15 +1,11 @@
 use std::process::Command;
 use super::redirect::RedirectHandler;
-use super::super::pipeline::PipelineHandler;
+use crate::executor::{ Executor, ExecStatus, ExecOutcome, ExecError };
+use crate::executor::builtins::BuiltinManager;
+use crate::executor::path_resolver::PathResolver;
+use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, CommandKind};
 use crate::environment::Environment;
-use crate::executor::{
-    Executor,
-    ExecStatus, ExecError,
-    builtins::BuiltinManager,
-    path_resolver::PathResolver,
-    // signal::SignalHandler,
-};
 
 pub struct RecursiveExecutor {
     pub builtin_registry: BuiltinManager,
@@ -56,7 +52,7 @@ impl RecursiveExecutor {
                     Some(p) => p,
                     None => {
                         eprintln!("tiny-shell: command not found or failed");
-                        return Ok(127) // The shell's standard "command not found" exit code
+                        return Ok(ExecOutcome::Code(127)) // The shell's standard "command not found" exit code
                         // return Err(ExecError::CommandNotFound(cmd.name.clone()));
                     }
                 };
@@ -73,7 +69,7 @@ impl RecursiveExecutor {
                 // }
 
                 match command.status() {
-                    Ok(status) => Ok(status.code().unwrap_or(1)),
+                    Ok(status) => Ok(ExecOutcome::Code(status.code().unwrap_or(1))),
                     Err(e) => Err(ExecError::Io(e)),
                 }
             }
@@ -97,20 +93,20 @@ impl Executor for RecursiveExecutor {
                 for node in seq {
                     self.exec(node, env)?;
                 }
-                Ok(0)
+                Ok(ExecOutcome::Code(0))
             }
             AstNode::And(left, right) => {
-                if self.exec(left, env)? == 0 {
+                if self.exec(left, env)? == ExecOutcome::Code(0) {
                     self.exec(right, env)
                 } else {
-                    Ok(1)
+                    Ok(ExecOutcome::Code(1))
                 }
             }
             AstNode::Or(left, right) => {
-                if self.exec(left, env)? != 0 {
+                if self.exec(left, env)? != ExecOutcome::Code(0) {
                     self.exec(right, env)
                 } else {
-                    Ok(0)
+                    Ok(ExecOutcome::Code(0))
                 }
             }
             AstNode::Subshell(_inner) => {

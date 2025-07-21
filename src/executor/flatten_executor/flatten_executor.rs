@@ -1,10 +1,10 @@
 use std::fs::File;
 use std::process::{Command};
 use std::os::unix::io::AsRawFd;
-use super::super::executor::{ Executor, ExecStatus, ExecError };
-use super::super::builtins::BuiltinManager;
-use super::super::path_resolver::PathResolver;
-use super::super::pipeline::PipelineHandler;
+use crate::executor::{ Executor, ExecStatus, ExecOutcome, ExecError };
+use crate::executor::builtins::BuiltinManager;
+use crate::executor::path_resolver::PathResolver;
+use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
 
@@ -62,7 +62,7 @@ impl Executor for FlattenExecutor {
                 }
             }
         }
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 }
 
@@ -169,7 +169,7 @@ impl FlattenExecutor {
                 }
             }
         }
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 
     fn end_redirect(&mut self, kind: &RedirectKind) -> ExecStatus {
@@ -192,18 +192,18 @@ impl FlattenExecutor {
                 }
             }
         }
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 
     fn begin_pipeline(&mut self) -> ExecStatus {
         self.in_pipeline = true;
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 
     fn end_pipeline(&mut self, cmds: &[CommandNode], env: &mut Environment) -> ExecStatus {
         PipelineHandler::exec_pipeline_generic(cmds, |cmd| self.run_command(cmd, env))?;
         self.in_pipeline = false;
-        Ok(0)
+        Ok(ExecOutcome::Code(0))
     }
 
     fn run_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
@@ -218,7 +218,7 @@ impl FlattenExecutor {
             Some(p) => p,
             None => {
                 eprintln!("tiny-shell: command not found or failed");
-                return Ok(127) // The shell's standard "command not found" exit code
+                return Ok(ExecOutcome::Code(127)) // The shell's standard "command not found" exit code
             }
         };
 
@@ -237,7 +237,7 @@ impl FlattenExecutor {
         // }
 
         match command.status() {
-            Ok(status) => Ok(status.code().unwrap_or(1)),
+            Ok(status) => Ok(ExecOutcome::Code(status.code().unwrap_or(1))),
             Err(e) => Err(ExecError::Io(e)),
         }
     }

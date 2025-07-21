@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-
+use crate::executor::{ ExecStatus, ExecOutcome, ExecError };
 use crate::environment::Environment;
-use crate::executor::{ ExecStatus };
-use super::executor::ExecError;
 
 pub trait BuiltinCommand {
     fn name(&self) -> &'static str;
@@ -40,7 +38,7 @@ impl BuiltinManager {
         env: &mut Environment,
     ) -> ExecStatus {
         if let Some(cmd) = self.commands.get(name) {
-            Ok(cmd.run(args, env))
+            Ok(ExecOutcome::Code(cmd.run(args, env)))
         } else {
             Err(ExecError::NoSuchBuiltin(name.to_string()))
         }

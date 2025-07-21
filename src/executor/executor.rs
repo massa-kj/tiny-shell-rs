@@ -2,7 +2,13 @@ use std::{io, fmt};
 use crate::ast::{AstNode};
 use crate::environment::Environment;
 
-pub type ExecStatus = Result<i32, ExecError>;
+pub type ExecStatus = Result<ExecOutcome, ExecError>;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ExecOutcome {
+    Code(i32),
+    Exit(i32),
+}
 
 #[derive(Debug)]
 pub enum ExecError {
@@ -54,14 +60,14 @@ mod tests {
             match node {
                 AstNode::Command(cmd) => {
                     self.log.push(format!("command: {} {:?}", cmd.name, cmd.args));
-                    Ok(0)
+                    Ok(ExecOutcome::Code(0))
                 }
                 AstNode::Pipeline(nodes) => {
                     self.log.push("pipeline".to_string());
                     for node in nodes {
                         self.exec(node, env)?;
                     }
-                    Ok(0)
+                    Ok(ExecOutcome::Code(0))
                 }
                 AstNode::Redirect { node, kind, file } => {
                     self.log.push(format!("redirect: {:?} {}", kind, file));
@@ -76,27 +82,27 @@ mod tests {
                     for node in seq {
                         self.exec(node, env)?;
                     }
-                    Ok(0)
+                    Ok(ExecOutcome::Code(0))
                 }
                 AstNode::And(lhs, rhs) => {
                     self.log.push("and".to_string());
-                    if self.exec(lhs, env)? == 0 {
+                    if self.exec(lhs, env)? == ExecOutcome::Code(0) {
                         self.exec(rhs, env)
                     } else {
-                        Ok(1)
+                        Ok(ExecOutcome::Code(1))
                     }
                 }
                 AstNode::Or(lhs, rhs) => {
                     self.log.push("or".to_string());
-                    if self.exec(lhs, env)? != 0 {
+                    if self.exec(lhs, env)? != ExecOutcome::Code(0) {
                         self.exec(rhs, env)
                     } else {
-                        Ok(0)
+                        Ok(ExecOutcome::Code(0))
                     }
                 }
                 AstNode::Compound(_) => {
                     self.log.push("compound".to_string());
-                    Ok(0)
+                    Ok(ExecOutcome::Code(0))
                 }
             }
         }
@@ -123,7 +129,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(exec.log, vec!["command: echo [\"hello\"]"]);
     }
 
@@ -136,7 +142,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(exec.log, vec!["pipeline", "command: ls []", "command: wc []"]);
     }
 
@@ -150,7 +156,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(exec.log, vec!["redirect: Out out.txt", "command: ls []"]);
     }
 
@@ -160,7 +166,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(exec.log, vec!["subshell", "command: ls []"]);
     }
 
@@ -178,7 +184,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(
             exec.log,
             vec![
@@ -207,7 +213,7 @@ mod tests {
         let mut env = Environment::new();
         let mut exec = TestExecutor::new();
         let result = exec.exec(&ast, &mut env);
-        assert!(matches!(result, Ok(0)));
+        assert!(matches!(result, Ok(ExecOutcome::Code(0))));
         assert_eq!(
             exec.log,
             vec![

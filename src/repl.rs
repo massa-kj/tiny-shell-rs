@@ -5,7 +5,16 @@ use crate::parser::{ Parser, DefaultParser };
 use crate::expander;
 use crate::environment::Environment;
 use crate::io::InputHandler;
-use crate::executor::{Executor, ExecOutcome, RecursiveExecutor, FlattenExecutor, BuiltinManager, HistoryCommand};
+use crate::executor::{
+    Executor,
+    ExecOutcome,
+    RecursiveExecutor,
+    FlattenExecutor,
+};
+use crate::executor::builtin::{
+    BuiltinManager,
+    HistoryCommand,
+};
 use crate::history::HistoryManager;
 
 pub struct Repl;

@@ -14,6 +14,46 @@ pub struct RecursiveExecutor<'a> {
     // pub signal_handler: SignalHandler,
 }
 
+impl<'a> Executor for RecursiveExecutor<'a> {
+    fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
+        match node {
+            AstNode::Command(cmd) => {
+                self.exec_command(cmd, env)
+            }
+            AstNode::Redirect { node: inner, kind, file } => {
+                RedirectHandler::handle_redirect(inner, kind, file, self, env)
+            }
+            AstNode::Pipeline(nodes) => {
+                PipelineHandler::exec_pipeline_generic(nodes, |node| self.exec(node, env))
+            }
+            AstNode::Sequence(seq) => {
+                for node in seq {
+                    self.exec(node, env)?;
+                }
+                Ok(ExecOutcome::Code(0))
+            }
+            AstNode::And(left, right) => {
+                if self.exec(left, env)? == ExecOutcome::Code(0) {
+                    self.exec(right, env)
+                } else {
+                    Ok(ExecOutcome::Code(1))
+                }
+            }
+            AstNode::Or(left, right) => {
+                if self.exec(left, env)? != ExecOutcome::Code(0) {
+                    self.exec(right, env)
+                } else {
+                    Ok(ExecOutcome::Code(0))
+                }
+            }
+            AstNode::Subshell(_inner) => {
+                Err(ExecError::NotImplemented("Not implemented".to_string()))
+            }
+            _ => Err(ExecError::NotImplemented("Not implemented".to_string())),
+        }
+    }
+}
+
 impl<'a> RecursiveExecutor<'a> {
     pub fn new(builtin_manager: &'a BuiltinManager) -> Self {
         RecursiveExecutor {
@@ -24,7 +64,7 @@ impl<'a> RecursiveExecutor<'a> {
         }
     }
 
-    pub fn exec_command(
+    fn exec_command(
         &mut self,
         cmd: &CommandNode,
         env: &mut Environment,
@@ -72,46 +112,6 @@ impl<'a> RecursiveExecutor<'a> {
                     Err(e) => Err(ExecError::Io(e)),
                 }
             }
-        }
-    }
-}
-
-impl<'a> Executor for RecursiveExecutor<'a> {
-    fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
-        match node {
-            AstNode::Command(cmd) => {
-                self.exec_command(cmd, env)
-            }
-            AstNode::Redirect { node: inner, kind, file } => {
-                RedirectHandler::handle_redirect(inner, kind, file, self, env)
-            }
-            AstNode::Pipeline(nodes) => {
-                PipelineHandler::exec_pipeline_generic(nodes, |node| self.exec(node, env))
-            }
-            AstNode::Sequence(seq) => {
-                for node in seq {
-                    self.exec(node, env)?;
-                }
-                Ok(ExecOutcome::Code(0))
-            }
-            AstNode::And(left, right) => {
-                if self.exec(left, env)? == ExecOutcome::Code(0) {
-                    self.exec(right, env)
-                } else {
-                    Ok(ExecOutcome::Code(1))
-                }
-            }
-            AstNode::Or(left, right) => {
-                if self.exec(left, env)? != ExecOutcome::Code(0) {
-                    self.exec(right, env)
-                } else {
-                    Ok(ExecOutcome::Code(0))
-                }
-            }
-            AstNode::Subshell(_inner) => {
-                Err(ExecError::NotImplemented("Not implemented".to_string()))
-            }
-            _ => Err(ExecError::NotImplemented("Not implemented".to_string())),
         }
     }
 }

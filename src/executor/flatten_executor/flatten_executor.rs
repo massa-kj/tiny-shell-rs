@@ -8,17 +8,6 @@ use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
 
-pub struct FlattenExecutor<'a> {
-    builtin_manager: &'a BuiltinManager,
-    stdin_stack: Vec<i32>,
-    stdout_stack: Vec<i32>,
-    // stderr_stack: Vec<i32>,
-    in_pipeline: bool, // Whether or not in the pipeline
-}
-
-// pub struct DryRunExecutor;
-// pub struct LoggingExecutor;
-
 #[derive(Debug, Clone, PartialEq)]
 enum ExecStep {
     RunCommand(CommandNode),
@@ -31,6 +20,14 @@ enum ExecStep {
     },
     BeginPipeline,
     EndPipeline,
+}
+
+pub struct FlattenExecutor<'a> {
+    builtin_manager: &'a BuiltinManager,
+    stdin_stack: Vec<i32>,
+    stdout_stack: Vec<i32>,
+    // stderr_stack: Vec<i32>,
+    in_pipeline: bool, // Whether or not in the pipeline
 }
 
 impl<'a> Executor for FlattenExecutor<'a> {

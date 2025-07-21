@@ -10,5 +10,5 @@ pub use executor::{Executor, ExecStatus, ExecOutcome, ExecError};
 pub use recursive_executor::RecursiveExecutor;
 pub use flatten_executor::FlattenExecutor;
 pub use path_resolver::PathResolver;
-pub use builtins::BuiltinManager;
+pub use builtins::{ BuiltinManager, HistoryCommand };
 

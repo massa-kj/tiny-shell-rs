@@ -8,7 +8,8 @@ use crate::executor::pipeline::PipelineHandler;
 use crate::ast::{AstNode, CommandNode, RedirectKind};
 use crate::environment::Environment;
 
-pub struct FlattenExecutor {
+pub struct FlattenExecutor<'a> {
+    builtin_manager: &'a BuiltinManager,
     stdin_stack: Vec<i32>,
     stdout_stack: Vec<i32>,
     // stderr_stack: Vec<i32>,
@@ -32,7 +33,7 @@ enum ExecStep {
     EndPipeline,
 }
 
-impl Executor for FlattenExecutor {
+impl<'a> Executor for FlattenExecutor<'a> {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus {
         let mut plan = Vec::new();
         self.flatten_ast(node, &mut plan);
@@ -44,7 +45,10 @@ impl Executor for FlattenExecutor {
                     if self.in_pipeline {
                         pipeline_cmds.push(cmd.clone());
                     } else {
-                        self.run_command(cmd, env)?;
+                        let outcome = self.run_command(cmd, env)?;
+                        if let ExecOutcome::Exit(code) = outcome {
+                            return Ok(ExecOutcome::Exit(code));
+                        }
                     }
                 }
                 ExecStep::BeginRedirect { kind, file } => {
@@ -57,7 +61,10 @@ impl Executor for FlattenExecutor {
                     self.begin_pipeline()?;
                 }
                 ExecStep::EndPipeline => {
-                    self.end_pipeline(&pipeline_cmds, env)?;
+                    let outcome = self.end_pipeline(&pipeline_cmds, env)?;
+                    if let ExecOutcome::Exit(code) = outcome {
+                        return Ok(ExecOutcome::Exit(code));
+                    }
                     pipeline_cmds.clear();
                 }
             }
@@ -66,9 +73,10 @@ impl Executor for FlattenExecutor {
     }
 }
 
-impl FlattenExecutor {
-    pub fn new() -> Self {
+impl<'a> FlattenExecutor<'a> {
+    pub fn new(builtin_manager: &'a BuiltinManager) -> Self {
         FlattenExecutor {
+            builtin_manager,
             stdin_stack: Vec::new(),
             stdout_stack: Vec::new(),
             // stderr_stack: Vec::new(),
@@ -208,9 +216,8 @@ impl FlattenExecutor {
 
     fn run_command(&mut self, cmd: &CommandNode, env: &mut Environment) -> ExecStatus {
         // Built-in command execution
-        let builtin_manager = BuiltinManager::new();
-        if builtin_manager.is_builtin(&cmd.name) {
-            return builtin_manager.execute(&cmd.name, &cmd.args, env);
+        if self.builtin_manager.is_builtin(&cmd.name) {
+            return self.builtin_manager.execute(&cmd.name, &cmd.args, env);
         }
 
         let resolver = PathResolver;

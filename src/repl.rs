@@ -1,21 +1,34 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::lexer::Lexer;
+use crate::parser::{ Parser, DefaultParser };
+use crate::expander;
+use crate::environment::Environment;
+use crate::io::InputHandler;
+use crate::executor::{Executor, ExecOutcome, RecursiveExecutor, FlattenExecutor, BuiltinManager, HistoryCommand};
+use crate::history::HistoryManager;
+
 pub struct Repl;
 
 impl Repl {
     pub fn run() {
-        use crate::lexer::{Lexer};
-        use crate::parser::{Parser, DefaultParser};
-        use crate::expander;
-        use crate::environment::Environment;
-        use crate::io::InputHandler;
-        use crate::executor::{Executor, RecursiveExecutor, FlattenExecutor};
-
         let mut env = Environment::new();
+        let history_mgr = Rc::new(RefCell::new(
+            HistoryManager::load("./.my_shell_history", 20).unwrap()
+        ));
+        let mut builtin_mgr = BuiltinManager::new();
+        builtin_mgr.register(Box::new(HistoryCommand { history: Rc::clone(&history_mgr) }));
 
         loop {
             let line = match InputHandler::read_line("$ ") {
                 Ok(l) => l,
                 Err(_) => break,
             };
+
+            {
+                let mut history = history_mgr.borrow_mut();
+                history.add(line.as_deref().unwrap_or(""));
+            }
 
             let tokens = match &line {
                 Some(l) if l.trim().is_empty() => continue,
@@ -46,18 +59,26 @@ impl Repl {
                 }
             };
 
-            let mut executor = RecursiveExecutor{
-                builtin_registry: crate::executor::BuiltinManager::new(),
-                path_resolver: crate::executor::PathResolver,
-            };
-            let mut executor = FlattenExecutor::new();
+            // let mut executor = RecursiveExecutor::new(&builtin_mgr);
+            let mut executor = FlattenExecutor::new(&builtin_mgr);
             match executor.exec(&expanded, &mut env) {
-                Ok(_) => continue,
+                Ok(ExecOutcome::Code(_)) => continue,
+                Ok(ExecOutcome::Exit(_)) => break,
                 Err(e) => {
                     eprintln!("execution error: {}", e);
                     continue;
                 }
             }
+        }
+
+        Repl::cleanup(&history_mgr);
+    }
+
+    fn cleanup(history_mgr: &Rc<RefCell<HistoryManager>>) {
+        println!("Exiting shell...");
+        let history = history_mgr.borrow_mut();
+        if let Err(e) = history.save() {
+            eprintln!("Failed to save history: {}", e);
         }
     }
 }

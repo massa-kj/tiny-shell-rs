@@ -76,7 +76,7 @@ impl Repl {
 
     fn cleanup(history_mgr: &Rc<RefCell<HistoryManager>>) {
         println!("Exiting shell...");
-        let history = history_mgr.borrow_mut();
+        let history = history_mgr.borrow();
         if let Err(e) = history.save() {
             eprintln!("Failed to save history: {}", e);
         }

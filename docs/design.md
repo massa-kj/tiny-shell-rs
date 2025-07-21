@@ -12,7 +12,7 @@
   - [lexer](#lexer)
   - [parser](#parser)
   - [executor](#executor)
-    - [executor/builtin](#executorbuiltin)
+    - [executor/builtin](#executorbuiltinmanager)
     - [executor/path_resolver](#executorpath_resolver)
     - [executor/pipeline](#executorpipeline)
     - [executor/signal](#executorsignal)
@@ -122,6 +122,10 @@ src/                               //
 │   ├── path_resolver.rs           // Path resolution
 │   ├── pipeline.rs                // Pipeline Processing
 │   ├── signal.rs                  // Signal handler
+│   ├── builtin/                   //
+│   │   ├── mod.rs                 //
+│   │   ├── manager.rs             // Builtin Manager and Command trait
+│   │   └── commands.rs            // Built-in commands
 │   ├── recursive_executor/        //
 │   │   ├── mod.rs                 //
 │   │   ├── redirect.rs            // Redirection processing
@@ -330,18 +334,20 @@ let ast = AstNode::If(
 pub trait Executor {
     fn exec(&mut self, node: &AstNode, env: &mut Environment) -> ExecStatus;
 }
+
 pub type ExecStatus = Result<i32, ExecError>;
+
 pub enum ExecError;
-pub struct FlattenExecutor;
 ```
 
-### executor/builtin
+### executor/builtin/manager
 
 ```rust
 pub trait BuiltinCommand {
     fn name(&self) -> &'static str;
     fn execute(&self, args: &[String], env: &mut EnvManager) -> Result<i32, ExecError>;
 }
+
 pub struct BuiltinManager;
 impl BuiltinManager {
     pub fn register(&mut self, cmd: Box<dyn BuiltinCommand>);
@@ -384,6 +390,7 @@ impl SignalHandler {
 
 ```rust
 impl Executor for RecursiceExecutor;
+
 pub struct RedirectHandler;
 impl RedirectHandler {
     pub fn handle_redirect(&self, node: &AstNode) -> Result<(), ExecError>;
@@ -394,6 +401,7 @@ impl RedirectHandler {
 
 ```rust
 impl Executor for FlattenExecutor;
+
 pub struct FlattenAst;
 ```
 
@@ -440,10 +448,10 @@ pub struct HistoryManager {
 
 impl HistoryManager {
     // Load from history file
-    pub fn load(path: &str) -> std::io::Result<Self>;
+    pub fn load(path: &str, max_len: usize) -> std::io::Result<Self>;
 
     // Save history
-    pub fn save(&self, path: &str) -> std::io::Result<()>;
+    pub fn save(&self) -> std::io::Result<()>;
 
     // Add a command to history
     pub fn add(&mut self, line: &str);

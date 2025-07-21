@@ -7,7 +7,7 @@
 
 ## Architecture Overview
 
-[design](./docs/design.md)
+- [design](./docs/design.md)
 
 This is a simple shell implementation in Rust, designed to be educational and modular. The architecture is structured to allow for easy expansion and understanding of how a shell operates.
 The shell consists of several components that work together in a pipeline fashion:
@@ -21,6 +21,7 @@ The shell consists of several components that work together in a pipeline fashio
 - Path resolution (e.g., `command` vs `./command`)
 - Pipe support (e.g., `command1 | command2 | command3 ...`)
 - Redirection support (e.g., `command > file`, `command < file`)
+- History management
 
 ### Planned
 
@@ -30,7 +31,6 @@ The shell consists of several components that work together in a pipeline fashio
 - Command substitution (e.g., `$(command)`)
 - Tilde expansion (e.g., `~/path`)
 - Signal handling (e.g., `Ctrl+C` to interrupt)
-- History management
 - Complementary Features
 - Loading the configuration file
 

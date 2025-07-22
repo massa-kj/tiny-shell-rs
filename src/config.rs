@@ -7,7 +7,7 @@ pub struct Config {
     pub prompt: String,
     pub history_file: String,
     pub history_max: usize,
-    pub executor_type: String,
+    pub executor_type: ExecutorType,
     pub aliases: HashMap<String, String>,
     pub env_vars: HashMap<String, String>,
 }
@@ -20,7 +20,7 @@ impl ConfigLoader {
             prompt: "$ ".to_string(),
             history_file: "~/.tiny_shell_history".to_string(),
             history_max: 500,
-            executor_type: "flatten".to_string(),
+            executor_type: ExecutorType::Flatten,
             aliases: HashMap::new(),
             env_vars: HashMap::new(),
         }
@@ -67,7 +67,12 @@ impl ConfigLoader {
                     Ok(n) => history_max = Some(n),
                     Err(_) => return Err(ConfigError::Parse(format!("Line {}: Invalid usize: {}", lineno+1, line))),
                 },
-                "executor_type" => executor_type = Some(value.to_string()),
+                "executor_type" => {
+                    executor_type = match value {
+                        "recursive" => Some(ExecutorType::Recursive),
+                        _ => Some(ExecutorType::Flatten),
+                    };
+                }
                 k if k.starts_with("alias.") => {
                     let alias = k.trim_start_matches("alias.").to_string();
                     aliases.insert(alias, value.to_string());
@@ -97,5 +102,11 @@ pub enum ConfigError {
     Io(std::io::Error),
     Parse(String),
     // Validation
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExecutorType {
+    Flatten,
+    Recursive,
 }
 

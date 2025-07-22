@@ -16,13 +16,13 @@ use crate::executor::builtin::{
     HistoryCommand,
 };
 use crate::history::HistoryManager;
-use crate::config::ConfigLoader;
+use crate::config::{ ConfigLoader, ExecutorType };
 
 pub struct Repl;
 
 impl Repl {
     pub fn run() {
-        let config = match ConfigLoader::load_from_file("~/.tinyshrc") {
+        let config = match ConfigLoader::load_from_file("./.tinyshrc") {
             Ok(cfg) => cfg,
             Err(e) => {
                 // eprintln!("Failed to load config: {e}");
@@ -77,9 +77,9 @@ impl Repl {
                 }
             };
 
-            let mut executor: Box<dyn Executor> = match config.executor_type.as_str() {
-                "flatten" => Box::new(FlattenExecutor::new(&builtin_mgr)),
-                _ => Box::new(RecursiveExecutor::new(&builtin_mgr)),
+            let mut executor: Box<dyn Executor> = match config.executor_type {
+                ExecutorType::Recursive => Box::new(RecursiveExecutor::new(&builtin_mgr)),
+                _ => Box::new(FlattenExecutor::new(&builtin_mgr)),
             };
             match executor.exec(&expanded, &mut env) {
                 Ok(ExecOutcome::Code(_)) => continue,

@@ -447,7 +447,7 @@ impl EnvManager {
 }
 ```
 
-### history (draft)
+### history
 
 ```rust
 pub struct HistoryManager {
@@ -481,12 +481,10 @@ impl HistoryManager {
     // Get the latest history entry (the last entered command)
     pub fn last(&self) -> Option<&str>;
 
-    pub fn iter(&self) -> impl Iterator<Item=&str>;
-
+    // Remove the nth history entry
     pub fn remove(&mut self, idx: usize);
 
-    pub fn set_max_len(&mut self, max: usize);
-
+    // Set the file path for history
     pub fn set_file_path(&mut self, path: String);
 }
 ```

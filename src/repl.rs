@@ -16,20 +16,29 @@ use crate::executor::builtin::{
     HistoryCommand,
 };
 use crate::history::HistoryManager;
+use crate::config::ConfigLoader;
 
 pub struct Repl;
 
 impl Repl {
     pub fn run() {
+        let config = match ConfigLoader::load_from_file("~/.tinyshrc") {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                // eprintln!("Failed to load config: {e}");
+                ConfigLoader::default_config()
+            }
+        };
+
         let mut env = Environment::new();
         let history_mgr = Rc::new(RefCell::new(
-            HistoryManager::load("./.my_shell_history", 20).unwrap()
+            HistoryManager::load(config.history_file.as_str(), config.history_max).unwrap()
         ));
         let mut builtin_mgr = BuiltinManager::new();
         builtin_mgr.register(Box::new(HistoryCommand { history: Rc::clone(&history_mgr) }));
 
         loop {
-            let line = match InputHandler::read_line("$ ") {
+            let line = match InputHandler::read_line(config.prompt.as_str()) {
                 Ok(l) => l,
                 Err(_) => break,
             };
@@ -68,8 +77,10 @@ impl Repl {
                 }
             };
 
-            // let mut executor = RecursiveExecutor::new(&builtin_mgr);
-            let mut executor = FlattenExecutor::new(&builtin_mgr);
+            let mut executor: Box<dyn Executor> = match config.executor_type.as_str() {
+                "flatten" => Box::new(FlattenExecutor::new(&builtin_mgr)),
+                _ => Box::new(RecursiveExecutor::new(&builtin_mgr)),
+            };
             match executor.exec(&expanded, &mut env) {
                 Ok(ExecOutcome::Code(_)) => continue,
                 Ok(ExecOutcome::Exit(_)) => break,

@@ -8,4 +8,5 @@ pub mod environment;
 pub mod history;
 pub mod error;
 pub mod io;
+pub mod config;
 

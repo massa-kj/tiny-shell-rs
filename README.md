@@ -1,22 +1,20 @@
 # tiny-shell-rs
 
-## Purpose / Policy
-
-- For study purpose
-- Scalability, Testability, Consistency
-
 ## Architecture Overview
 
 - [design](./docs/design.md)
 
-This is a simple shell implementation in Rust, designed to be educational and modular. The architecture is structured to allow for easy expansion and understanding of how a shell operates.
-The shell consists of several components that work together in a pipeline fashion:
+tiny-shell-rs is a UNIX-like shell implemented in Rust.  
+This project emphasizes the following three points.  
+- Extensibility: Easy addition of functions and replacement of modules
+- Testability: Designed to facilitate automated testing of core logic
+- Consistency: Consistent code, UI, and error handling policy
 
 ## How to Run
 
-Rename `.tinyshrc.sample` to `.tinyshrc` and place it in your home directory.
-Change the configuration values as needed.
-If you do not place `.tinyshrc`, all default values will be applied.
+Rename `.tinyshrc.sample` to `.tinyshrc` and place it in your home directory.  
+Change the configuration values as needed.  
+If you do not place `.tinyshrc`, all default values will be applied.  
 
 ```sh
 cargo run
@@ -32,15 +30,15 @@ cargo run
 - Pipe support (e.g., `command1 | command2 | command3 ...`)
 - Redirection support (e.g., `command > file`, `command < file`)
 - History management
+- Loading the configuration file (`.tinyshrc` is similar to an ini file)
 
 ### Planned
 
+- Complementary Features
+- Environment variable expansion (e.g., `$HOME`, `${VAR}`)
+- Tilde expansion (e.g., `~/path`)
 - Background execution (e.g., `command &`)
 - Job control (e.g., `jobs`, `fg`, `bg`)
-- Environment variable expansion (e.g., `$HOME`, `${VAR}`)
-- Command substitution (e.g., `$(command)`)
-- Tilde expansion (e.g., `~/path`)
 - Signal handling (e.g., `Ctrl+C` to interrupt)
-- Complementary Features
-- Loading the configuration file
+- Command substitution (e.g., `$(command)`)
 

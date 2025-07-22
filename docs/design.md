@@ -389,6 +389,9 @@ impl SignalHandler {
 ### executor/recursive_executor
 
 ```rust
+pub struct RecursiveExecutor<'a> {
+    builtin_manager: &'a BuiltinManager,
+}
 impl Executor for RecursiceExecutor;
 
 pub struct RedirectHandler;
@@ -400,6 +403,13 @@ impl RedirectHandler {
 ### executor/flatten_executor
 
 ```rust
+pub struct FlattenExecutor<'a> {
+    builtin_manager: &'a BuiltinManager,
+    stdin_stack: Vec<i32>,
+    stdout_stack: Vec<i32>,
+    // stderr_stack: Vec<i32>,
+    in_pipeline: bool, // Whether or not in the pipeline
+}
 impl Executor for FlattenExecutor;
 
 pub struct FlattenAst;
@@ -481,14 +491,16 @@ impl HistoryManager {
 }
 ```
 
-### config (draft)
+### config
 
 ```rust
 pub struct ConfigLoader;
-pub enum ConfigError;
 impl ConfigLoader {
-    pub fn load(&self, path: &str) -> Result<(), ConfigError>;
+    pub fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Config, ConfigError>;
+    pub fn load_from_str(src: &str) -> Result<Config, ConfigError>;
 }
+
+pub enum ConfigError;
 ```
 
 ### error

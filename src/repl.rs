@@ -25,7 +25,7 @@ impl Repl {
         let config = match ConfigLoader::load_from_file("./.tinyshrc") {
             Ok(cfg) => cfg,
             Err(e) => {
-                // eprintln!("Failed to load config: {e}");
+                eprintln!("Failed to load config: {}", e);
                 ConfigLoader::default_config()
             }
         };

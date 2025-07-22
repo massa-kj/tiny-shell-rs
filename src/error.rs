@@ -2,6 +2,7 @@ use std::fmt;
 use crate::lexer::LexError;
 use crate::parser::ParseError;
 use crate::executor::ExecError;
+use crate::config::ConfigError;
 
 #[derive(Debug)]
 pub enum ShellError {
@@ -9,6 +10,7 @@ pub enum ShellError {
     Lex(LexError),
     Parse(ParseError),
     Exec(ExecError),
+    Config(ConfigError),
 }
 
 impl fmt::Display for ShellError {
@@ -18,6 +20,7 @@ impl fmt::Display for ShellError {
             ShellError::Lex(e) => write!(f, "Lexing error: {}", e),
             ShellError::Parse(e) => write!(f, "Parsing error: {}", e),
             ShellError::Exec(e) => write!(f, "Execution error: {}", e),
+            ShellError::Config(e) => write!(f, "Configuration error: {}", e),
         }
     }
 }

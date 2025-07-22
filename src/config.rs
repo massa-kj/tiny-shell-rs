@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::fs::File;
+use std::{ io, fmt };
 use std::io::{ BufRead, BufReader };
+use std::fs::File;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -99,9 +100,17 @@ impl ConfigLoader {
 
 #[derive(Debug)]
 pub enum ConfigError {
-    Io(std::io::Error),
+    Io(io::Error),
     Parse(String),
     // Validation
+}
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigError::Io(e) => write!(f, "IO error: {}", e),
+            ConfigError::Parse(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

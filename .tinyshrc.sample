@@ -1,0 +1,12 @@
+# Prompt string displayed in the shell.
+prompt=$ 
+# Path to the shell history file. (If it doesn't exist, create it)
+history_file=~/.tiny_shell_history
+# Maximum number of history entries to keep.
+history_max=500
+# Command executor type (flatten or recursive)
+executor_type=flatten
+# Alias definitions
+alias.ls=ls -l
+# Environment variables
+env.EDITOR=vim

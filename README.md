@@ -12,6 +12,16 @@
 This is a simple shell implementation in Rust, designed to be educational and modular. The architecture is structured to allow for easy expansion and understanding of how a shell operates.
 The shell consists of several components that work together in a pipeline fashion:
 
+## How to Run
+
+Rename `.tinyshrc.sample` to `.tinyshrc` and place it in your home directory.
+Change the configuration values as needed.
+If you do not place `.tinyshrc`, all default values will be applied.
+
+```sh
+cargo run
+```
+
 ## Features
 
 ### Implemented

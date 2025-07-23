@@ -16,6 +16,8 @@ impl BuiltinCommand for HelpCommand {
         println!("  cd [DIR]   : Change directory");
         println!("  exit       : Exit shell");
         println!("  help       : Show this help");
+        println!("  export [VAR=VALUE] : Set or export environment variables");
+        println!("  history    : Show command history (last N commands)");
         Ok(ExecOutcome::Code(0))
     }
 }
@@ -58,12 +60,22 @@ impl BuiltinCommand for ExportCommand {
     fn name(&self) -> &'static str {
         "export"
     }
-    fn run(&self, _args: &[String], _env: &mut Environment) -> ExecStatus {
-        // for arg in args {
-        //     if let Some((k, v)) = arg.split_once('=') {
-        //         env.envs.insert(k.to_string(), v.to_string());
-        //     }
-        // }
+    fn run(&self, args: &[String], env: &mut Environment) -> ExecStatus {
+        if args.is_empty() {
+            for (k, v) in env.exported_vars() {
+                println!("declare -x {}=\"{}\"", k, v);
+            }
+            return Ok(ExecOutcome::Code(0));
+        }
+
+        for arg in args {
+            if let Some((key, val)) = arg.split_once('=') {
+                env.set(key, val);
+                env.export(key);
+            } else {
+                env.export(arg);
+            }
+        }
         Ok(ExecOutcome::Code(0))
     }
 }

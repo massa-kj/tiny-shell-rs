@@ -435,15 +435,20 @@ impl ReplState {
 }
 ```
 
-### env (draft)
+### env
 
 ```rust
-pub struct EnvManager;
-impl EnvManager {
-    pub fn get(&self, key: &str) -> Option<String>;
-    pub fn set(&mut self, key: &str, value: String);
+pub struct Environment {
+    vars: HashMap<String, Variable>,
+}
+impl Environment {
+    pub fn new() -> Self;
+    pub fn get(&self, key: &str) -> Option<&str>;
+    pub fn set(&mut self, key: &str, value: &str);
     pub fn unset(&mut self, key: &str);
+    pub fn export(&mut self, key: &str);
     pub fn all(&self) -> Vec<(String, String)>;
+    pub fn exported_vars(&self) -> Vec<(String, String)>;
 }
 ```
 

@@ -233,12 +233,9 @@ impl<'a> FlattenExecutor<'a> {
             command.arg(arg);
         }
 
-        // for (k, v) in &cmd.assignments {
-        //     command.env(k, v);
-        // }
-        // for (k, v) in &env.vars {
-        //     command.env(k, v);
-        // }
+        for (k, v) in &env.exported_vars() {
+            command.env(k, v);
+        }
 
         match command.status() {
             Ok(status) => Ok(ExecOutcome::Code(status.code().unwrap_or(1))),

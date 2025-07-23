@@ -103,9 +103,9 @@ impl<'a> RecursiveExecutor<'a> {
                 for arg in &cmd.args {
                     command.arg(arg);
                 }
-                // for (key, value) in env.all() {
-                //     command.env(&key, &value);
-                // }
+                for (k, v) in &env.exported_vars() {
+                    command.env(k, v);
+                }
 
                 match command.status() {
                     Ok(status) => Ok(ExecOutcome::Code(status.code().unwrap_or(1))),

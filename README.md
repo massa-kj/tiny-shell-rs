@@ -31,6 +31,7 @@ cargo run
 - Redirection support (e.g., `command > file`, `command < file`)
 - History management
 - Loading the configuration file (`.tinyshrc` is similar to an ini file)
+- Environment variable management (e.g., `export VAR=value`, `unset VAR`)
 
 ### Planned
 

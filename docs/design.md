@@ -328,6 +328,44 @@ let ast = AstNode::If(
 );
 ```
 
+### expander
+
+- Variable expansion (e.g. $HOME, ${VAR})
+- Command substitution (e.g. $(command), `command`)
+- Wildcard expansion (e.g. **/*.txt)
+- Quoting (e.g. "abc $VAR")
+- Escape character processing (e.g. \n, \$)
+- Here document / here string expansion
+- Other string conversions needed before/after converting user input to AST
+
+```rust
+pub struct Expander<'a> {
+    env: &'a Environment,
+    cwd: std::path::PathBuf, // Required for wildcard expansion
+}
+
+impl<'a> Expander<'a> {
+    pub fn new(env: &'a Environment, cwd: impl Into<std::path::PathBuf>) -> Self;
+
+    /// Recursively expands the AST (command substitution, variable expansion, wildcard expansion, etc.)
+    pub fn expand(&self, node: AstNode) -> Result<AstNode, ExpandError>;
+
+    /// Expands a single argument string (usually used for argument expansion in CommandNode, etc.)
+    pub fn expand_arg(&self, arg: &str) -> Result<Vec<String>, ExpandError>;
+
+    /// Expansion for heredoc and herestring
+    pub fn expand_heredoc(&self, content: &str, quoted: bool) -> Result<String, ExpandError>;
+}
+
+pub enum ExpandError {
+    InvalidVariableSyntax,
+    CommandSubstitutionFailed(String),
+    GlobPatternError(String),
+    IoError(std::io::Error),
+    Unsupported(String),
+}
+```
+
 ### executor
 
 ```rust

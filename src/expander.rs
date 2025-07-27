@@ -108,8 +108,55 @@ impl<'a> Expander<'a> {
 
     fn substitute_vars(&self, input: &str) -> Result<String, ExpandError> {
         // Example: Replace $VAR, ${VAR} with environment variables
-        // Not implemented yet
-        Ok(input.to_string()) // 仮
+        let mut result = String::new();
+        let mut chars = input.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '\\' {
+                // Escaped character → Add as is
+                if let Some(next) = chars.next() {
+                    result.push(next);
+                }
+            } else if ch == '$' {
+                match chars.peek() {
+                    Some('{') => {
+                        chars.next(); // skip '{'
+                        let mut var_name = String::new();
+                        while let Some(&c) = chars.peek() {
+                            if c == '}' {
+                                chars.next(); // skip '}'
+                                break;
+                            }
+                            var_name.push(c);
+                            chars.next();
+                        }
+                        let value = self.env.get(&var_name).unwrap_or("").to_string();
+                        result.push_str(&value);
+                    }
+                    Some(c) if is_var_start_char(*c) => {
+                        let mut var_name = String::new();
+                        while let Some(&c) = chars.peek() {
+                            if is_var_char(c) {
+                                var_name.push(c);
+                                chars.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        let value = self.env.get(&var_name).unwrap_or("").to_string();
+                        result.push_str(&value);
+                    }
+                    _ => {
+                        // No variable name follows $ → Add $ as is
+                        result.push('$');
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        Ok(result)
     }
 
     fn command_substitute(&self, input: &str) -> Result<String, ExpandError> {
@@ -127,6 +174,14 @@ impl<'a> Expander<'a> {
     fn expand_single_arg(&self, s: &str) -> Result<String, ExpandError> {
         self.expand_arg(s).map(|mut v| v.remove(0))
     }
+}
+
+fn is_var_start_char(c: char) -> bool {
+    c.is_ascii_alphabetic() || c == '_'
+}
+
+fn is_var_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
 }
 
 #[derive(Debug)]
@@ -180,7 +235,7 @@ mod tests {
     fn test_variable_substitution_braced() {
         with_expander(|expander| {
             let result = expander.expand_arg("Home: ${USER}land").unwrap();
-            assert_eq!(result, vec!["Home: masaland"]);
+            assert_eq!(result, vec!["Home: userland"]);
         });
     }
 
@@ -228,7 +283,7 @@ mod tests {
     fn test_escaped_characters() {
         with_expander(|expander| {
             let result = expander.expand_arg("Line\\nBreak\\$USER").unwrap();
-            assert_eq!(result, vec!["Line\\nBreak$USER"]); // 実装次第では改行展開も可
+            assert_eq!(result, vec!["Line\\nBreak$USER"]);
         });
     }
 
@@ -246,7 +301,7 @@ mod tests {
         with_expander(|expander| {
             let input = "Path: $USER\nToday: $(echo Sun)";
             let output = expander.expand_heredoc(input, true).unwrap();
-            assert_eq!(output.trim(), input); // 展開なし
+            assert_eq!(output.trim(), input);
         });
     }
 

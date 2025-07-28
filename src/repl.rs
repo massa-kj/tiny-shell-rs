@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::lexer::Lexer;
 use crate::parser::{ Parser, DefaultParser };
-use crate::expander;
+use crate::expander::Expander;
 use crate::environment::Environment;
 use crate::io::InputHandler;
 use crate::executor::{
@@ -69,8 +69,16 @@ impl Repl {
             };
             let ast = parser.parse();
 
+            let cwd = std::env::current_dir().unwrap();
+            let expander = Expander::new(&env, cwd);
             let expanded = match ast {
-                Ok(ast) => expander::expand(&ast, &env),
+                Ok(ast) => match expander.expand(ast) {
+                    Ok(expanded_ast) => expanded_ast,
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        continue;
+                    }
+                }
                 Err(e) => {
                     eprintln!("{}", e);
                     continue;

@@ -3,11 +3,6 @@ use std::path::PathBuf;
 use crate::ast::{AstNode, CommandNode};
 use crate::environment::Environment;
 
-// TODO: delete
-pub fn expand(node: &AstNode, _env: &Environment) -> AstNode {
-    node.clone()
-}
-
 pub struct Expander<'a> {
     env: &'a Environment,
     cwd: std::path::PathBuf, // Required for wildcard expansion

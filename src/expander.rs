@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{env, fmt};
 use std::path::PathBuf;
 use crate::ast::{AstNode, CommandNode};
 use crate::environment::Environment;
@@ -89,7 +89,8 @@ impl<'a> Expander<'a> {
     // Argument expansion (variable, command, wildcard, quote processing)
     pub fn expand_arg(&self, arg: &str) -> Result<Vec<String>, ExpandError> {
         // Temporary implementation: actually should tokenize → expand → split
-        let s = self.substitute_vars(arg)?;
+        let s = self.expand_tilde(arg)?;
+        let s = self.substitute_vars(&s)?;
         let s = self.command_substitute(&s)?;
         let parts = self.glob_expand(&s)?;
         Ok(parts)
@@ -174,6 +175,17 @@ impl<'a> Expander<'a> {
     fn expand_single_arg(&self, s: &str) -> Result<String, ExpandError> {
         self.expand_arg(s).map(|mut v| v.remove(0))
     }
+
+    fn expand_tilde(&self, arg: &str) -> Result<String, ExpandError> {
+        if let Some(rest) = arg.strip_prefix('~') {
+            let path = rest;
+            let home = env::var("HOME").map(PathBuf::from)
+                .map_err(|e| ExpandError::TildeExpandFailed(e.to_string()))?;
+            Ok(format!("{}{}", home.display(), path))
+        } else {
+            Ok(arg.to_string())
+        }
+    }
 }
 
 fn is_var_start_char(c: char) -> bool {
@@ -189,6 +201,7 @@ pub enum ExpandError {
     InvalidVariableSyntax,
     CommandSubstitutionFailed(String),
     GlobPatternError(String),
+    TildeExpandFailed(String),
     IoError(std::io::Error),
     Unsupported(String),
 }
@@ -198,6 +211,7 @@ impl fmt::Display for ExpandError {
             ExpandError::InvalidVariableSyntax => write!(f, "Invalid variable syntax"),
             ExpandError::CommandSubstitutionFailed(cmd) => write!(f, "Command substitution failed: {}", cmd),
             ExpandError::GlobPatternError(pattern) => write!(f, "Glob pattern error: {}", pattern),
+            ExpandError::TildeExpandFailed(user) => write!(f, "Tilde expansion failed for user: {}", user),
             ExpandError::IoError(e) => write!(f, "IO error: {}", e),
             ExpandError::Unsupported(msg) => write!(f, "Unsupported operation: {}", msg),
         }
@@ -318,6 +332,18 @@ mod tests {
         with_expander(|expander| {
             let result = expander.expand_arg("[$EMPTY]").unwrap();
             assert_eq!(result, vec!["[]"]);
+        });
+    }
+
+    #[test]
+    fn test_tilde_expand_home() {
+        with_expander(|expander| {
+            let home = std::env::var("HOME").unwrap();
+            let result = expander.expand_tilde("~").unwrap();
+            assert_eq!(result, home);
+
+            let result = expander.expand_tilde("~/foo/bar").unwrap();
+            assert_eq!(result, format!("{}/foo/bar", home));
         });
     }
 }

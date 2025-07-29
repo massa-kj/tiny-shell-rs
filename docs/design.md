@@ -1,5 +1,8 @@
 # Design Document
 
+This document describes the internal architecture and design decisions of `tiny-shell-rs`, a modular UNIX-like shell implemented in Rust.
+It is intended for developer to understand the internal components, data flow, and extension points of the system.
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
@@ -11,6 +14,7 @@
   - [ast](#ast)
   - [lexer](#lexer)
   - [parser](#parser)
+  - [expander](#expander)
   - [executor](#executor)
     - [executor/builtin](#executorbuiltinmanager)
     - [executor/path_resolver](#executorpath_resolver)
@@ -19,9 +23,9 @@
     - [executor/recursive_executor](#executorrecursive_executor)
     - [executor/flatten_executor](#executorflatten_executor)
   - [state](#statedraft)
-  - [env](#envdraft)
-  - [history](#historydraft)
-  - [config](#configdraft)
+  - [environment](#environment)
+  - [history](#history)
+  - [config](#config)
   - [error](#error)
 
 ## Architecture Overview
@@ -139,11 +143,11 @@ src/                               //
 │   └── output.rs                  // Standard output/error wrapper
 ├── state/                         //
 │   ├── mod.rs                     //
-│   ├── repl_state.rs              // Integrates Env, History, Config
+│   ├── repl_state.rs              // Integrates Environment, History, Config
 │   └── state_store.rs             // Persistence support
 ├── repl.rs                        // REPL loop: input handling/output control
 ├── ast.rs                         // Abstract Syntax Tree (AST) definitions
-├── env.rs                         // Environment variable management
+├── environment.rs                 // Environment variable management
 ├── history.rs                     // History/completion
 ├── config.rs                      // Config file loader
 ├── error.rs                       // Error handling
@@ -206,17 +210,17 @@ pub enum LexError;
 ```rust
 pub enum AstNode {
     Command(CommandNode),
-    Subshell(Box<AstNode>),
+    Pipeline(Vec<AstNode>),
     Redirect {
         node: Box<AstNode>,
         kind: RedirectKind,
         file: String,
     },
-    Pipeline(Box<AstNode>, Box<AstNode>),
+    Sequence(Vec<AstNode>),
     And(Box<AstNode>, Box<AstNode>),
     Or(Box<AstNode>, Box<AstNode>),
-    Sequence(Box<AstNode>, Box<AstNode>),
-    // Compound, If, For, ...
+    Subshell(Box<AstNode>),
+    Compound(CompoundNode),
 }
 
 pub struct CommandNode {
@@ -251,82 +255,9 @@ pub enum ParseError;
 
 Sequence < And/Or < Pipeline < Redirect < Subshell < Command
 
-#### AST node example
+#### AST node examples
 
-```rust
-// Example 1: `ls -l > ls.txt; cat < ls.txt | grep "txt" | wc > output.txt`
-let ast = AstNode::Sequence(
-    Box::new(AstNode::Redirect {
-        node: Box::new(AstNode::Command(CommandNode {
-            name: "ls".to_string(),
-            args: vec!["-l".to_string()],
-            kind: CommandKind::External,
-        })),
-        kind: RedirectKind::Out,
-        file: "ls.txt".to_string(),
-    }),
-    Box::new(AstNode::Pipeline(
-        Box::new(AstNode::Redirect {
-            node: Box::new(AstNode::Command(CommandNode {
-                name: "cat".to_string(),
-                args: vec!["ls.txt".to_string()],
-                kind: CommandKind::External,
-            })),
-            kind: RedirectKind::In,
-            file: "".to_string(), // Input redirection does not require a file
-        }),
-        Box::new(AstNode::Pipeline(
-            Box::new(AstNode::Command(CommandNode {
-                name: "grep".to_string(),
-                args: vec!["txt".to_string()],
-                kind: CommandKind::External,
-            })),
-            Box::new(AstNode::Redirect {
-                node: Box::new(AstNode::Command(CommandNode {
-                    name: "wc".to_string(),
-                    args: vec![],
-                    kind: CommandKind::External,
-                })),
-                kind: RedirectKind::Out,
-                file: "output.txt".to_string(),
-            }),
-        )),
-    )),
-);
-// Example 2: `(cd /tmp && ls) || echo "Failed"`
-let ast = AstNode::Or(
-    Box::new(AstNode::Subshell(Box::new(AstNode::Sequence(
-        Box::new(AstNode::Command(CommandNode {
-            name: "cd".to_string(),
-            args: vec!["/tmp".to_string()],
-            kind: CommandKind::External,
-        })),
-        Box::new(AstNode::Command(CommandNode {
-            name: "ls".to_string(),
-            args: vec![],
-            kind: CommandKind::External,
-        })),
-    )))),
-    Box::new(AstNode::Command(CommandNode {
-        name: "echo".to_string(),
-        args: vec!["Failed".to_string()],
-        kind: CommandKind::Builtin,
-    })),
-);
-// Example 3: `if [ -f file.txt ]; then echo "File exists"; fi`
-let ast = AstNode::If(
-    Box::new(AstNode::Command(CommandNode {
-        name: "test".to_string(),
-        args: vec!("-f".to_string(), "file.txt".to_string()),
-        kind: CommandKind::Builtin,
-    })),
-    Box::new(AstNode::Command(CommandNode {
-        name: "echo".to_string(),
-        args: vec!["File exists".to_string()],
-        kind: CommandKind::Builtin,
-    })),
-);
-```
+- See [AST node examples](./examples/ast_node.md).
 
 ### expander
 
@@ -473,7 +404,7 @@ impl ReplState {
 }
 ```
 
-### env
+### environment
 
 ```rust
 pub struct Environment {

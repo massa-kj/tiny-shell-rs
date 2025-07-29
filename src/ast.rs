@@ -12,7 +12,6 @@ pub enum AstNode {
     Or(Box<AstNode>, Box<AstNode>),
     Subshell(Box<AstNode>),
     Compound(CompoundNode),
-    // Empty,
 }
 
 #[derive(Debug, Clone, PartialEq)]

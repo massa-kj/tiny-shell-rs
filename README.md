@@ -1,20 +1,25 @@
 # tiny-shell-rs
 
+A minimal UNIX-like shell implemented in Rust.  
+This project is both a learning journey and an attempt to design a practical, extensible shell from scratch.
+
+## Goals
+
+tiny-shell-rs emphasizes the following principles:
+
+- **Extensibility**: Modular architecture for easy function addition and replacement
+- **Testability**: Core logic designed with unit and integration testing in mind
+- **Consistency**: Uniform conventions for code structure, CLI behavior, and error reporting
+
 ## Architecture Overview
 
-- [design](./docs/design.md)
+- See [Design Document](./docs/design.md) for architecture and module-level details.
 
-tiny-shell-rs is a UNIX-like shell implemented in Rust.  
-This project emphasizes the following three points.  
-- Extensibility: Easy addition of functions and replacement of modules
-- Testability: Designed to facilitate automated testing of core logic
-- Consistency: Consistent code, UI, and error handling policy
+## Getting Started
 
-## How to Run
-
-Rename `.tinyshrc.sample` to `.tinyshrc` and place it in your home directory.  
-Change the configuration values as needed.  
-If you do not place `.tinyshrc`, all default values will be applied.  
+1. Clone the repository
+2. (Optional) Rename `.tinyshrc.sample` to `.tinyshrc` and place it in your home directory  
+3. (Optional) Adjust configuration values as needed (or skip — defaults will apply)
 
 ```sh
 cargo run
@@ -22,24 +27,27 @@ cargo run
 
 ## Features
 
-### Implemented
+### Implemented Features
 
-- Simple execution of commands (e.g., `ls`, `echo`)
+- Basic command execution (e.g., `ls`, `echo`)
 - Built-in commands (e.g., `cd`, `exit`, `help`)
-- Path resolution (e.g., `command` vs `./command`)
-- Pipe support (e.g., `command1 | command2 | command3 ...`)
-- Redirection support (e.g., `command > file`, `command < file`)
-- History management
-- Loading the configuration file (`.tinyshrc` is similar to an ini file)
-- Environment variable management (e.g., `export VAR=value`, `unset VAR`)
+- Path resolution (`command` vs `./command`)
+- Piping (`command1 | command2 | command3`)
+- Redirection (`command > file`, `command < file`)
+- Command history
+- Configuration file loading (`.tinyshrc` — ini-like format)
+- Environment variable management (`export`, `unset`)
+- Environment variable expansion (`$HOME`, `${VAR}`)
+- Tilde expansion (`~/path`)
 
-### Planned
+### Work in Progress / Planned
 
-- Complementary Features
-- Environment variable expansion (e.g., `$HOME`, `${VAR}`)
-- Tilde expansion (e.g., `~/path`)
-- Background execution (e.g., `command &`)
-- Job control (e.g., `jobs`, `fg`, `bg`)
-- Signal handling (e.g., `Ctrl+C` to interrupt)
-- Command substitution (e.g., `$(command)`)
+These features are currently being designed or prototyped:
+
+- Wildcard/glob expansion (`**/*.txt`)
+- Command substitution (`$(command)`)
+- Background execution (`command &`)
+- Job control (`jobs`, `fg`, `bg`)
+- Signal handling (Ctrl+C interrupt, SIGTSTP, etc.)
+- Auto-completion and suggestions
 
